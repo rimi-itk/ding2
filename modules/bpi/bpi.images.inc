@@ -54,13 +54,15 @@ function bpi_assets_form($form, $form_state, $assets = array()) {
       '#title' => t('Available images'),
     );
 
-    foreach ($assets as $asset => $url) {
-      $form['bpi_assets'][$asset] = array(
-        '#type' => 'checkbox',
-        '#default_value' => 1,
-        '#prefix' => '<div class="bpi-syndicate-asset"><img src="' . $url . '" width="100" height="100" />',
-        '#suffix' => '</div>',
-      );
+    foreach ($assets as $type => $items) {
+      foreach ($items as $asset) {
+        $form['bpi_assets']['asset::' . $type . '::' . $asset['name']] = array(
+          '#type' => 'checkbox',
+          '#default_value' => 1,
+          '#prefix' => '<div class="bpi-syndicate-asset"><img src="' . $asset['path'] . '" width="100" height="100" />' . '<br/> (' . bpi_get_image_name($asset['type']) . ')',
+          '#suffix' => '</div>',
+        );
+      }
     }
   }
 
@@ -88,25 +90,36 @@ function bpi_assets_form($form, $form_state, $assets = array()) {
  * @ingroup forms
  */
 function bpi_assets_form_submit($form, &$form_state) {
-  $input = array_keys($form_state['input']);
+  $bpi_assets = $_SESSION['bpi']['assets'];
+
   $assets = array();
 
   // Seek the assets.
-  foreach ($input as $value) {
-    if (preg_match('/^asset(\d+)*/', $value) && !empty($form_state['input'][$value])) {
-      if (isset($_SESSION['bpi']['assets'][$value])) {
-        $assets[] = $_SESSION['bpi']['assets'][$value];
+  foreach ($form_state['input'] as $name => $value) {
+    if (preg_match('/^asset::(?<type>[^:]+)::(?<name>[^_]+)$/', $name, $matches) && !empty($value)) {
+      $type = $matches['type'];
+      $name = $matches['name'];
+      if (isset($bpi_assets[$type][$name])) {
+        $assets[] = $bpi_assets[$type][$name];
       }
     }
   }
 
   unset($_SESSION['bpi']['assets']);
+  bpi_clear_syndicated_images();
 
-  foreach ($assets as $path) {
-    $filename = basename($path);
-    $managed_file = bpi_fetch_image('public://bpi/' . $filename, $path);
+  // Group syndicated images by type.
+  $syndicated_images = array();
+  $status = TRUE;
+  foreach ($assets as $asset) {
+    $filename = $asset['name'] . '.' . $asset['extension'];
+    $managed_file = bpi_fetch_image('public://bpi/' . $filename, $asset['path']);
 
-    $status = TRUE;
+    if (!isset($syndicated_images[$asset['type']])) {
+      $syndicated_images[$asset['type']] = array();
+    }
+    $syndicated_images[$asset['type']][] = $asset + array('@managed_file' => $managed_file);
+
     if (!is_object($managed_file)) {
       $status = FALSE;
     }
@@ -114,6 +127,23 @@ function bpi_assets_form_submit($form, &$form_state) {
 
   if (isset($status) && $status) {
     drupal_set_message(t('Images downloaded successfully.'));
+    // Store syndicated images for use in edit form.
+    bpi_set_syndicated_images($syndicated_images);
+
+    if (isset($_SESSION['bpi']['destination'])) {
+      $url = drupal_parse_url($_SESSION['bpi']['destination']['destination']);
+
+      // @see http://drupal.stackexchange.com/a/86593
+      $redirect_url = $url['path'];
+      ctools_include('ajax');
+      $commands[] = ctools_ajax_command_redirect($redirect_url, 0, array(
+        'query' => array_merge($url['query'], array(
+          'bpi_images_syndicated' => 1,
+        )),
+      ));
+      print ajax_render($commands);
+      exit;
+    }
   }
   else {
     drupal_set_message(t('Not all images were fetched successfully, check reports for more info.'));
@@ -212,4 +242,97 @@ function bpi_fetch_image($filename, $image_url) {
   }
 
   return file_save_data($result->data, $filename, FILE_EXISTS_REPLACE);
+}
+
+
+/**
+ * Compute the image type from a field name on a node.
+ *
+ * @param string $image_field_name
+ *   The image field name.
+ * @param array $node
+ *   The node.
+ *
+ * @return NULL|string
+ *   The image type.
+ */
+function bpi_get_image_type($image_field_name, $node) {
+  /*
+   * We assume that the image type is the last part of the field name, i.e.
+   *   field_{{node type}}_{{image type}}
+   */
+  $pattern = '/field_' . preg_quote($node->type, '/') . '_(?<image_type>.+)/';
+  if (preg_match($pattern, $image_field_name, $matches)) {
+    return $matches['image_type'];
+  }
+  return NULL;
+}
+
+/**
+ * Decide if the given field is a container for the given bpi image type.
+ *
+ * @param string $field_name
+ *   The field name.
+ * @param array $node
+ *   The node.
+ * @param string $image_type
+ *   The bpi image type.
+ *
+ * @return bool
+ *   True if the field is a container for the the bpi image type.
+ */
+function bpi_is_bpi_image_field($field_name, $node, $image_type) {
+  return bpi_get_image_type($field_name, $node) == $image_type;
+}
+
+function bpi_set_syndicated_images(array $syndicated_images) {
+  $_SESSION['bpi']['syndicated_images'] = $syndicated_images;
+}
+
+function bpi_get_syndicated_images() {
+  return isset($_SESSION['bpi']['syndicated_images']) ? $_SESSION['bpi']['syndicated_images'] : NULL;
+}
+
+function bpi_clear_syndicated_images() {
+  unset($_SESSION['bpi']['syndicated_images']);
+}
+
+/**
+ * Place syndicated images in node edit form.
+ *
+ * @param array $form
+ *   The form.
+ * @param string $current_language
+ *   The current language.
+ * @param array $syndicated_images
+ *   The syndicated images.
+ */
+function bpi_place_images(array &$form, $current_language, array $syndicated_images) {
+  $node = $form['#node'];
+  $image_field_names = bpi_fetch_image_fields($node->type);
+  if (!empty($image_field_names)) {
+    foreach ($syndicated_images as $image_type => $images) {
+      foreach ($image_field_names as $image_field_name) {
+        if (bpi_is_bpi_image_field($image_field_name, $node, $image_type)) {
+          $field = &$form[$image_field_name][$current_language];
+          $cardinality = isset($field['#cardinality']) ? $field['#cardinality'] : 1;
+          $number_of_images = count($images);
+          for ($i = 0; $i < min($cardinality, $number_of_images); $i++) {
+            if (is_object($images[$i]['@managed_file'])) {
+              $field[$i]['#default_value'] = array('fid' => $images[$i]['@managed_file']->fid);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function bpi_get_image_name($image_type) {
+  $types = array(
+    'body' => t('body_image'),
+    'list_image' => t('list_image'),
+    'title_image' => t('title_image'),
+  );
+  return isset($types[$image_type]) ? $types[$image_type] : t($image_type);
 }
