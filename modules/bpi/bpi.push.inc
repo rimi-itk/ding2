@@ -207,11 +207,11 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
             if (is_object($file)) {
               $bpi_content['assets'][] = array(
                 'path' => file_create_url($file->uri),
-                'alt' => $file->alt ?: pathinfo($file->filename, PATHINFO_BASENAME),
-                'title' => $file->title ?: pathinfo($file->filename, PATHINFO_BASENAME),
+                'alt' => $file->alt ?: $file->filename,
+                'title' => $file->title ?: $file->filename,
                 'type' => $image_type,
                 'name' => $file->filename,
-                'extension' => pathinfo($file->filename, PATHINFO_EXTENSION),
+                'extension' => pathinfo($file->uri, PATHINFO_EXTENSION),
               );
             }
           }
