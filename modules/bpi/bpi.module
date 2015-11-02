@@ -430,6 +430,7 @@ function bpi_place_inline_images($field_name, $content, $current_language, array
       }
     }
 
+    // Find <img src="…"/> elements in content and replace with file placeholders.
     $image_pattern = '@<img\s*[^>]*\ssrc=[\'"](?<url>[^\'">]+)[\'"][^>]*>@';
 
     $content = preg_replace_callback($image_pattern, function($matches) use ($current_language, $path_mapping) {
@@ -438,6 +439,7 @@ function bpi_place_inline_images($field_name, $content, $current_language, array
         $image = $path_mapping[$url];
         $file = $image['@managed_file'];
 
+        // Build data for file placeholder.
         $data = array(
           'fid' => $file->fid,
           'view_mode' => 'default',
