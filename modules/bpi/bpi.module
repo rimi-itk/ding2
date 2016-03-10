@@ -69,6 +69,96 @@ function bpi_menu() {
     'file' => 'bpi.syndicate.inc',
   );
 
+  $menu['admin/bpi/channel'] = array(
+    'title' => 'All channels',
+    'description' => 'Show all channels.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_list_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%'] = array(
+    'title' => 'Channel details',
+    'description' => 'Show channel details.',
+    'page callback' => 'bpi_channel_view',
+    'page arguments' => array(3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/edit'] = array(
+    'title' => 'Edit channel',
+    'description' => 'Edit channel details.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_edit_form', 3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/delete'] = array(
+    'title' => 'Delete channel',
+    'description' => 'Delete channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_delete_form', 3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/editor/remove/%'] = array(
+    'title' => 'Remove editor from channel',
+    'description' => 'Remove editor from channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_editor_remove_form', 3, 6),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/node/add/%'] = array(
+    'title' => 'Add node to channel',
+    'description' => 'Add node to channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_node_add_form', 5),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/node/remove/%'] = array(
+    'title' => 'Remove node from channel',
+    'description' => 'Remove node from channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_node_remove_form', 3, 6),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/user'] = array(
+    'title' => 'All users',
+    'description' => 'Show all users.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_user_list_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
+  $menu['admin/bpi/user/%'] = array(
+    'title' => 'User details',
+    'description' => 'Show user details.',
+    'page callback' => 'bpi_user_view',
+    'page arguments' => array(3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
+  $menu['admin/bpi/user/%/channels'] = array(
+    'title' => 'User channels',
+    'description' => 'Show channels.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_user_channel_list_form', 3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
   $menu['admin/bpi/preview/%/%'] = array(
     'page callback' => 'admin_bpi_preview_ajax_callback',
     'page arguments' => array(3, 4),
@@ -219,6 +309,22 @@ function bpi_theme($existing, $type, $theme, $path) {
     'bpi_search_results' => array(
       'variables' => array('items' => array()),
       'file' => 'bpi.syndicate.inc',
+    ),
+    'bpi_channel_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.channel.inc',
+    ),
+    'bpi_channel_view' => array(
+      'path' => $path . '/templates/',
+      'template' => 'channel-view',
+    ),
+    'bpi_user_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.user.inc',
+    ),
+    'bpi_user_view' => array(
+      'path' => $path . '/templates/',
+      'template' => 'user-view',
     ),
   );
 }
