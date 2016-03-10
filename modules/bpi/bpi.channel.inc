@@ -714,6 +714,15 @@ function bpi_channel_node_add_form(array $form, array &$form_state) {
     }
   }
 
+  $bpi = bpi_client_instance();
+  $bpi_node = $bpi->getNode($node_id);
+  $bpi_content = $bpi_node->getProperties();
+
+  $form['node'] = array(
+    '#type' => 'item',
+    '#markup' => theme('bpi_preview_item', array('item' => $bpi_content)),
+  );
+
   $form['channel'] = array(
     '#type' => 'select',
     '#title' => t('Channel'),
