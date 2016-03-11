@@ -284,7 +284,7 @@ function bpi_user_list_form_add_editors_to_channel_submit(array $form, array &$f
  *   The form.
  */
 function bpi_user_channel_list_form(array $form, array &$form_state) {
-  $user_id = isset($form_state['build_info']['args'][0]) ? $form_state['build_info']['args'][0] : NULL;
+  $user_id = count($form_state['build_info']['args']) > 0 ? $form_state['build_info']['args'][0] : bpi_get_current_bpi_user_id();
   return bpi_channel_list_form($form, $form_state, $user_id);
 }
 

@@ -105,19 +105,6 @@ function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL)
       ),
     );
 
-    if ($user_id) {
-      $form['bpi_actions']['bpi_list_channels'] = array(
-        '#type' => 'item',
-        '#markup' => l(t('All channels'), 'admin/bpi/channel'),
-      );
-    }
-    else {
-      $form['bpi_actions']['bpi_list_channels'] = array(
-        '#type' => 'item',
-        '#markup' => l(t('My channels'), 'admin/bpi/user/' . bpi_get_current_bpi_user_id() . '/channels'),
-      );
-    }
-
     $form['bpi_actions']['bpi_create_channel'] = array(
       '#type' => 'item',
       '#markup' => l(t('Create channel'), 'admin/bpi/channel/new/edit'),
