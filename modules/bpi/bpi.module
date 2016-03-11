@@ -247,6 +247,9 @@ function bpi_menu() {
   return $menu;
 }
 
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
 function bpi_menu_local_tasks_alter(&$data, $router_item, $root_path) {
   $bpi_paths = array('admin/bpi/channel', 'admin/bpi/user/channels');
   if (in_array($root_path, $bpi_paths)) {
@@ -1128,7 +1131,8 @@ function bpi_user_update(&$edit, $account, $category) {
           'firstName' => $account->name,
           'lastName' => '',
         ));
-      } catch (\Exception $e) {
+      }
+      catch (\Exception $e) {
         watchdog_exception('bpi', $e, 'Cannot update bpi user ' . $account->uuid . ' ' . $account->mail);
       }
     }
