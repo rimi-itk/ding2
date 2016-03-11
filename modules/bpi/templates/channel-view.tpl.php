@@ -18,6 +18,7 @@
 
 	<?php echo theme('bpi_user_list', array(
     'items' => $channel->getEditors(),
+    '#channel' => $channel,
     'empty' => t('Channel has no editors'),
   )); ?>
 

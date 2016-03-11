@@ -464,10 +464,34 @@ function theme_bpi_user_list(array $variables) {
  */
 function bpi_preprocess_bpi_user_list(array &$variables) {
   $items = $variables['items'];
+  $channel = isset($variables['#channel']) ? $variables['#channel'] : NULL;
 
   // If no data, do not process anything.
   if (empty($items)) {
     return;
+  }
+
+  $has_actions = FALSE;
+  $rows = array();
+  foreach ($items as $item) {
+    $name = l($item->getName(), 'admin/bpi/user/' . $item->getId());
+    $email = l($item->getEmail(), 'admin/bpi/user/' . $item->getId());
+    $agency = $item->getAgencyId();
+    $actions = array();
+    if ($channel && bpi_can_edit_channel($channel)) {
+      $actions[] = l(t('Remove'), 'admin/bpi/channel/' . $channel->getID() . '/editor/remove/' . $item->getId());
+      $has_actions = TRUE;
+    }
+
+    $row = array(
+      'name' => $name,
+      'email' => $email,
+      'agency' => $agency,
+    );
+    if ($actions) {
+      $row['actions'] = implode(' ', $actions);
+    }
+    $rows[] = $row;
   }
 
   $table_head = array(
@@ -484,28 +508,14 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
       'class' => array('bpi-agency', _bpi_get_current_sorting('agency') ? 'active' : ''),
     ),
   );
+  if ($has_actions) {
+    $table_head['actions'] = t('Actions');
+  }
 
-  // Set table defaults.
   $variables['header'] = $table_head;
   $variables['sticky'] = TRUE;
-  $variables['rows'] = array();
-
-  $rows = array();
-  foreach ($items as $item) {
-    $name = l($item->getName(), 'admin/bpi/user/' . $item->getId());
-    $email = l($item->getEmail(), 'admin/bpi/user/' . $item->getId());
-    $agency = $item->getAgencyId();
-
-    $rows[] = array(
-      'name' => $name,
-      'email' => $email,
-      'agency' => $agency,
-    );
-  }
+  $variables['rows'] = $rows;
 
   // Unset old data.
   unset($variables['items']);
-
-  // Set table data.
-  $variables['rows'] = $rows;
 }
