@@ -1055,23 +1055,25 @@ function bpi_validate_material($id) {
  * Creates user in bpi web service.
  */
 function bpi_user_login(&$edit, $account) {
-  if (!isset($account->data['bpi_user_id'])) {
-    // Create bpi user.
-    $bpi = bpi_client_instance();
-    try {
-      $bpi_user = $bpi->createUser(array(
-        'externalId' => $account->uuid,
-        'email' => $account->mail,
-        'firstName' => $account->name,
-        'lastName' => '',
-      ));
+  if (bpi_access()) {
+    if (!isset($account->data['bpi_user_id'])) {
+      // Create bpi user.
+      $bpi = bpi_client_instance();
+      try {
+        $bpi_user = $bpi->createUser(array(
+          'externalId' => $account->uuid,
+          'email' => $account->mail,
+          'firstName' => $account->name,
+          'lastName' => '',
+        ));
 
-      if ($bpi_user && $bpi_user->getId()) {
-        user_save($account, array('data' => array('bpi_user_id' => $bpi_user->getId())));
+        if ($bpi_user && $bpi_user->getId()) {
+          user_save($account, array('data' => array('bpi_user_id' => $bpi_user->getId())));
+        }
       }
-    }
-    catch (\Exception $e) {
-      watchdog_exception('bpi', $e);
+      catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+      }
     }
   }
 }
@@ -1080,16 +1082,18 @@ function bpi_user_login(&$edit, $account) {
  * Implements hook_user_update().
  */
 function bpi_user_update(&$edit, $account, $category) {
-  if (isset($account->data['bpi_user_id'])) {
-    $bpi = bpi_client_instance();
-    try {
-      $bpi->updateUser($account->data['bpi_user_id'], array(
-        'email' => $account->mail,
-        'firstName' => $account->name,
-        'lastName' => '',
-      ));
-    } catch (\Exception $e) {
-      watchdog_exception('bpi', $e);
+  if (bpi_access()) {
+    if (isset($account->data['bpi_user_id'])) {
+      $bpi = bpi_client_instance();
+      try {
+        $bpi->updateUser($account->data['bpi_user_id'], array(
+          'email' => $account->mail,
+          'firstName' => $account->name,
+          'lastName' => '',
+        ));
+      } catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+      }
     }
   }
 }
