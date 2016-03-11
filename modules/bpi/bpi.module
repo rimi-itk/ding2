@@ -1072,7 +1072,7 @@ function bpi_user_login(&$edit, $account) {
         }
       }
       catch (\Exception $e) {
-        watchdog_exception('bpi', $e);
+        watchdog_exception('bpi', $e, 'Cannot create bpi user ' . $account->uuid . ' ' . $account->mail);
       }
     }
   }
@@ -1092,7 +1092,7 @@ function bpi_user_update(&$edit, $account, $category) {
           'lastName' => '',
         ));
       } catch (\Exception $e) {
-        watchdog_exception('bpi', $e);
+        watchdog_exception('bpi', $e, 'Cannot update bpi user ' . $account->uuid . ' ' . $account->mail);
       }
     }
   }
