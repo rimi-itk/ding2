@@ -959,7 +959,7 @@ function bpi_validate_material($id) {
  */
 function bpi_user_login(&$edit, $account) {
   if (bpi_access()) {
-    if (!isset($account->data['bpi_user_id'])) {
+    if (empty($account->data['bpi_user_id'])) {
       // Create bpi user.
       $bpi = bpi_client_instance();
       try {
@@ -986,7 +986,7 @@ function bpi_user_login(&$edit, $account) {
  */
 function bpi_user_update(&$edit, $account, $category) {
   if (bpi_access()) {
-    if (isset($account->data['bpi_user_id'])) {
+    if (!empty($account->data['bpi_user_id'])) {
       $bpi = bpi_client_instance();
       try {
         $bpi->updateUser($account->data['bpi_user_id'], array(
