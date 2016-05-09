@@ -363,6 +363,10 @@ function bpi_theme($existing, $type, $theme, $path) {
       'path' => $path . '/templates/',
       'template' => 'channel-view',
     ),
+    'bpi_channel_node_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.channel.inc',
+    ),
     'bpi_user_list' => array(
       'variables' => array('items' => array()),
       'file' => 'bpi.user.inc',

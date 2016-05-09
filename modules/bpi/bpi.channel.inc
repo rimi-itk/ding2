@@ -102,14 +102,9 @@ function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL)
       '#type' => 'container',
       '#attributes' => array(
         'class' => array(
-          'bpi-actions',
+          'action-links',
         ),
       ),
-    );
-
-    $form['bpi_actions']['bpi_create_channel'] = array(
-      '#type' => 'item',
-      '#markup' => l(t('Create channel'), 'admin/bpi/channel/new/edit'),
     );
 
     $form['bpi_query'] = $query_form;
@@ -140,17 +135,21 @@ function bpi_channel_view($channel_id) {
     return '';
   }
 
-  $nodes = NULL;
-  // @TODO: Use $bpi->searchNodes and filter by channel to get nodes.
+  $bpi = bpi_client_instance();
+  $nodes = $bpi->searchNodes(array(
+    'filter' => array(
+      'channels' => array($channel->getId()),
+    ),
+  ));
 
-  return theme('bpi_channel_view', [
+  return theme('bpi_channel_view', array(
     'channel' => $channel,
-    'nodes' => $nodes,
-  ]);
+    'nodes' => bpi_nodelist_to_array($nodes),
+  ));
 }
 
 /**
- * Channel edit form.
+ * Channel edit form. Also used for creating new channels.
  *
  * @param array $form
  *   The form.
@@ -163,7 +162,8 @@ function bpi_channel_view($channel_id) {
 function bpi_channel_edit_form(array $form, array &$form_state) {
   $channel_id = isset($form_state['build_info']['args'][0]) ? $form_state['build_info']['args'][0] : NULL;
 
-  if ($channel_id != 'new') {
+  if ($channel_id) {
+    // Edit channel.
     $channel = bpi_get_channel($channel_id);
 
     if (!bpi_can_edit_channel($channel)) {
@@ -188,7 +188,7 @@ function bpi_channel_edit_form(array $form, array &$form_state) {
 
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => 'save',
+    '#value' => $channel_id ? t('Save') : t('Create channel'),
   );
 
   $form['cancel'] = array(
@@ -197,6 +197,10 @@ function bpi_channel_edit_form(array $form, array &$form_state) {
   );
 
   $form['#submit'][] = 'bpi_channel_edit_form_submit';
+
+  $form['#attributes']['class'][] = 'bpi';
+  $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
+  $form['#attached']['js'][] = drupal_get_path('module', 'bpi') . '/js/bpi-admin.js';
 
   return $form;
 }
@@ -219,7 +223,7 @@ function bpi_channel_edit_form_submit(array $form, array &$form_state) {
     'description' => $values['description'],
   );
 
-  if ($channel_id == 'new') {
+  if (!$channel_id) {
     $channel_data['adminId'] = bpi_get_current_bpi_user_id();
     try {
       $bpi = bpi_client_instance();
@@ -268,18 +272,13 @@ function bpi_channel_delete_form(array $form, array &$form_state) {
     return $form;
   }
 
-  $form['actions']['delete'] = array(
-    '#type' => 'submit',
-    '#value' => t('Delete'),
-    '#submit' => array('bpi_channel_delete_form_submit'),
+  return confirm_form($form,
+    t('Are you sure you want to delete %title?', array('%title' => $channel->getName())),
+    'admin/bpi/channel/' . $channel->getId(),
+    t('This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
   );
-
-  $form['cancel'] = array(
-    '#type' => 'markup',
-    '#markup' => l(t('Cancel'), 'admin/bpi/channel/' . $channel->getId()),
-  );
-
-  return $form;
 }
 
 /**
@@ -296,7 +295,7 @@ function bpi_channel_delete_form_submit(array $form, array &$form_state) {
   try {
     $bpi = bpi_client_instance();
     $success = $bpi->deleteChannel($channel_id);
-    if (!$success) {
+    if ($success) {
       drupal_set_message(t('Channel deleted.'));
       drupal_goto('admin/bpi/channel');
     }
@@ -510,7 +509,6 @@ function bpi_search_channels($query = '', $page = 1, $filters = array(), $sortin
   return NULL;
 }
 
-
 /**
  * Implements theme_HOOK().
  *
@@ -567,40 +565,38 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
   $variables['sticky'] = TRUE;
   $variables['rows'] = array();
 
-  // If no data, do not process anything.
-  if (empty($items)) {
-    return;
-  }
 
   $rows = array();
-  foreach ($items as $item) {
-    $title = l($item->getName(), 'admin/bpi/channel/' . $item->getId());
-    $description = $item->getDescription();
+  if (!empty($items)) {
+    foreach ($items as $item) {
+      $title = l($item->getName(), 'admin/bpi/channel/' . $item->getId());
+      $description = $item->getDescription();
 
-    $administrator = '';
-    $agency = '';
-    $admin = $item->getAdmin();
-    if ($admin) {
-      $administrator = l($admin->getName(), 'admin/bpi/user/' . $admin->getId());
-      $agency = $admin->getAgencyId();
+      $administrator = '';
+      $agency = '';
+      $admin = $item->getAdmin();
+      if ($admin) {
+        $administrator = l($admin->getName(), 'admin/bpi/user/' . $admin->getId());
+        $agency = $admin->getAgencyId();
+      }
+      $actions = [];
+      if (bpi_can_edit_channel($item)) {
+        $actions[] = l(t('Edit'), 'admin/bpi/channel/' . $item->getId() . '/edit');
+        $actions[] = l(t('Delete'), 'admin/bpi/channel/' . $item->getId() . '/delete');
+      }
+
+      $row = array(
+        'title' => $title,
+        'description' => $description,
+        'administrator' => $administrator,
+        'agency' => $agency,
+        'nodes' => count($item->getNodes()),
+        'editors' => count($item->getEditors()),
+        'actions' => implode(' ', $actions),
+      );
+
+      $rows[] = $row;
     }
-    $actions = [];
-    if (bpi_can_edit_channel($item)) {
-      $actions[] = l(t('Edit'), 'admin/bpi/channel/' . $item->getId() . '/edit');
-      $actions[] = l(t('Delete'), 'admin/bpi/channel/' . $item->getId() . '/delete');
-    }
-
-    $row = array(
-      'title' => $title,
-      'description' => $description,
-      'administrator' => $administrator,
-      'agency' => $agency,
-      'nodes' => count($item->getNodes()),
-      'editors' => count($item->getEditors()),
-      'actions' => implode(' ', $actions),
-    );
-
-    $rows[] = $row;
   }
 
   // Unset old data.
@@ -608,6 +604,28 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
 
   // Set table data.
   $variables['rows'] = $rows;
+}
+
+/**
+ * Implements theme_HOOK().
+ *
+ * @param array $variables
+ *   Theme variables.
+ *
+ * @return string
+ *   An HTML string representing the themed output.
+ */
+function theme_bpi_channel_node_list(array $variables) {
+  return theme('table', $variables);
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function bpi_preprocess_bpi_channel_node_list(array &$variables) {
+  drupal_add_css(drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css');
+
+  bpi_preprocess_bpi_search_results($variables);
 }
 
 /**
@@ -638,26 +656,13 @@ function bpi_channel_editor_remove_form(array $form, array &$form_state) {
     return $form;
   }
 
-  $form['actions']['message'] = array(
-    '#type' => 'item',
-    '#markup' => t('Remove editor %editor from channel %channel?', array(
-      '%channel' => $channel->getName(),
-      '%editor' => $editor->getName(),
-    )),
+  return confirm_form($form,
+    t('Are you sure you want to remove %editor from %channel?', array('%editor' => $editor->getName() ? $editor->getName() : $editor->getEmail(), '%channel' => $channel->getName())),
+    'admin/bpi/channel/' . $channel->getId(),
+    t('This action cannot be undone.'),
+    t('Remove'),
+    t('Cancel')
   );
-
-  $form['actions']['delete'] = array(
-    '#type' => 'submit',
-    '#value' => t('Remove'),
-    '#submit' => array('bpi_channel_editor_remove_form_submit'),
-  );
-
-  $form['cancel'] = array(
-    '#type' => 'markup',
-    '#markup' => l(t('Cancel'), 'admin/bpi/channel/' . $channel->getId()),
-  );
-
-  return $form;
 }
 
 /**
@@ -709,10 +714,23 @@ function bpi_channel_node_add_form(array $form, array &$form_state) {
 
   $form['node'] = array(
     '#type' => 'item',
-    '#markup' => theme('bpi_preview_item', array('item' => $bpi_content)),
+    '#markup' => theme('bpi_preview_item', array(
+                 'item' => $bpi_content,
+                 'no_actions' => TRUE,
+               )),
   );
 
-  $form['channel'] = array(
+  $form['bpi_actions_bottom'] = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'class' => array(
+        'bpi-actions',
+        drupal_html_class('container-inline'),
+      ),
+    ),
+  );
+
+  $form['bpi_actions_bottom']['channel'] = array(
     '#type' => 'select',
     '#title' => t('Channel'),
     '#options' => $options,
@@ -720,9 +738,9 @@ function bpi_channel_node_add_form(array $form, array &$form_state) {
     '#default_value' => isset($_GET['channel']) ? $_GET['channel'] : '',
   );
 
-  $form['add_to_channel'] = array(
+  $form['bpi_actions_bottom']['add_to_channel'] = array(
     '#type' => 'submit',
-    '#value' => t('Add to channel'),
+    '#value' => t('Add node to channel'),
     '#submit' => array('bpi_channel_node_add_form_submit'),
   );
 
@@ -768,28 +786,21 @@ function bpi_channel_node_remove_form(array $form, array &$form_state) {
 
   $bpi = bpi_client_instance();
   $channel = $bpi->getChannel($channel_id);
+
+  if (!bpi_can_edit_channel($channel)) {
+    drupal_set_message(t("You're not allowed to edit this channel"), 'error');
+    return $form;
+  }
+
   $node = $bpi->getNode($node_id);
 
-  $form['actions']['message'] = array(
-    '#type' => 'item',
-    '#markup' => t('Remove node %node from channel %channel?', array(
-      '%channel' => $channel->getName(),
-      '%node' => $node->getProperties()['title'],
-    )),
+  return confirm_form($form,
+    t('Are you sure you want to remove %node from %channel?', array('%node' => $node->getProperties()['title'], '%channel' => $channel->getName())),
+    'admin/bpi/channel/' . $channel->getId(),
+    t('This action cannot be undone.'),
+    t('Remove'),
+    t('Cancel')
   );
-
-  $form['actions']['delete'] = array(
-    '#type' => 'submit',
-    '#value' => t('Remove'),
-    '#submit' => array('bpi_channel_node_remove_form_submit'),
-  );
-
-  $form['cancel'] = array(
-    '#type' => 'markup',
-    '#markup' => l(t('Cancel'), 'admin/bpi/channel/' . $channel->getId()),
-  );
-
-  return $form;
 }
 
 /**
@@ -812,7 +823,6 @@ function bpi_channel_node_remove_form_submit(array $form, array &$form_state) {
 
   drupal_goto('admin/bpi/channel/' . $channel_id);
 }
-
 
 /**
  * Decide if the current user can edit a channel.
@@ -841,24 +851,21 @@ function bpi_can_contribute_to_channel(Channel $channel) {
     return TRUE;
   }
   $user_id = bpi_get_current_bpi_user_id();
-  foreach ($channel->getEditors() as $editor) {
-    if ($editor->getId() == $user_id) {
-      return TRUE;
+  $editors = $channel->getEditors();
+  if ($editors) {
+    foreach ($editors as $editor) {
+      if ($editor->getId() == $user_id) {
+        return TRUE;
+      }
     }
   }
   return FALSE;
 }
 
-/**
- * Get all bpi agencies.
- *
- * @FIXME: This should NOT be hardcoded!
- *
- * @return array
- *   The agencies.
- */
-function bpi_get_agencies() {
-  return array(
-    '999999' => 'Test',
-  );
+function bpi_check_bpi_user_id() {
+  global $user;
+
+  if (empty(bpi_get_current_bpi_user_id())) {
+    drupal_set_message(t('Current user (!email) does not have a valid BPI user id', array('!email' => $user->mail)), 'warning');
+  }
 }

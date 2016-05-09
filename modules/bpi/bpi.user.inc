@@ -8,6 +8,11 @@
 require_once __DIR__ . '/bpi.channel.inc';
 
 /**
+ * Key for storing user facets in session.
+ */
+define('BPI_USER_ALL_FACETS_KEY', 'BPI_USER_ALL_FACETS');
+
+/**
  * Render a list of users.
  *
  * @param array $form
@@ -38,19 +43,10 @@ function bpi_user_list_form(array $form, array &$form_state) {
       ),
     );
 
-    $query_form['bpi_search']['text'] = array(
+    $query_form['bpi_search']['bpi_search_query'] = array(
       '#type' => 'textfield',
-      '#title' => t('Name'),
       '#default_value' => _bpi_get_current_search_phrase(),
       '#description' => t('Search in name'),
-    );
-
-    $query_form['bpi_search']['bpi_search_agency_id'] = array(
-      '#type' => 'select',
-      '#multiple' => TRUE,
-      '#options' => bpi_get_agencies(),
-      '#title' => t('Agency'),
-      '#description' => t('Agency id'),
     );
 
     $query_form['bpi_search']['bpi_search_actions'] = array(
@@ -80,6 +76,8 @@ function bpi_user_list_form(array $form, array &$form_state) {
     }
 
     $items = bpi_get_users();
+
+    bpi_user_build_search_facets($query_form);
 
     $total_items = $items['total_count'];
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
@@ -172,35 +170,240 @@ function bpi_user_list_form(array $form, array &$form_state) {
       ),
     );
 
-    $items = bpi_get_channels(bpi_get_current_bpi_user_id());
+    $bpi = bpi_client_instance();
     $options = array('' => '');
-    if (isset($items['channels'])) {
-      foreach ($items['channels'] as $channel) {
+    $channels = $bpi->getChannelsByUser(bpi_get_current_bpi_user_id());
+    if ($channels) {
+      foreach ($channels as $channel) {
         if (bpi_can_edit_channel($channel)) {
           $options[$channel->getId()] = $channel->getName();
         }
       }
     }
-    $form['bpi_actions_bottom']['channel'] = array(
-      '#type' => 'select',
-      '#title' => t('Channel'),
-      '#options' => $options,
-      '#default_value' => isset($_GET['add-to-channel']) ? $_GET['add-to-channel'] : '',
-    );
+    if (count($options) > 1) {
+      $form['bpi_actions_bottom']['channel'] = array(
+        '#type' => 'select',
+        '#title' => t('Channel'),
+        '#options' => $options,
+        '#default_value' => isset($_GET['add-to-channel']) ? $_GET['add-to-channel'] : '',
+      );
 
-    $form['bpi_actions_bottom']['add_editors_to_channel_submit'] = array(
-      '#type' => 'submit',
-      '#value' => t('Add selected editors to channel'),
-      '#submit' => array('bpi_user_list_form_add_editors_to_channel_submit'),
-      '#validate' => array('bpi_user_list_form_add_editors_to_channel_validate'),
-    );
+      $form['bpi_actions_bottom']['add_editors_to_channel_submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Add selected editors to channel'),
+        '#submit' => array('bpi_user_list_form_add_editors_to_channel_submit'),
+        '#validate' => array('bpi_user_list_form_add_editors_to_channel_validate'),
+      );
+    }
 
     $form['#attributes']['class'][] = 'bpi';
     $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
     $form['#attached']['js'][] = drupal_get_path('module', 'bpi') . '/js/bpi-admin.js';
+    $form['#submit'][] = 'bpi_user_list_form_submit';
   }
 
   return $form;
+}
+
+/**
+ * Custom submit handler for syndication page form.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @see bpi_syndicate_page_form()
+ *
+ * @ingroup forms
+ */
+function bpi_user_list_form_submit(array $form, array &$form_state) {
+  $bpi_query = array();
+  $sorting = _bpi_get_current_sorting();
+  if (!empty($sorting)) {
+    $bpi_query[BPI_QUERY_SORT_NAME] = $sorting;
+  }
+  $values = $form_state['values'];
+
+  if (isset($values['bpi_search_amount']) && intval($values['bpi_search_amount']) > 0) {
+    $bpi_query['amount'] = intval($values['bpi_search_amount']);
+  }
+
+  if (isset($values['bpi_search_query']) && trim($values['bpi_search_query'])) {
+    $bpi_query[BPI_SEARCH_PHRASE_KEY] = trim($values['bpi_search_query']);
+  }
+
+  if (isset($values['bpi_facets'])) {
+    foreach ($values['bpi_facets'] as $key => $value) {
+      $selected_values = is_array($value) ? array_keys(array_filter($value)) : $value;
+      if (!empty($selected_values)) {
+        if (!isset($bpi_query['filter'])) {
+          $bpi_query['filter'] = array();
+        }
+        $bpi_query['filter'][$key] = $selected_values;
+      }
+    }
+  }
+
+  // Redirect to search results.
+  drupal_goto('admin/bpi/user', array('query' => _bpi_build_query($bpi_query, TRUE)));
+}
+
+/**
+ * Build facets form fields.
+ *
+ * @param array $form
+ *   The form.
+ */
+function bpi_user_build_search_facets(array &$form) {
+  $facets = bpi_user_get_facets();
+
+  if (!empty($facets)) {
+    $filter_form = array(
+      '#type' => 'fieldset',
+      '#title' => t('Filters'),
+      '#collapsible' => TRUE,
+      '#collapsed' => !_bpi_is_filter_applied(),
+      '#attributes' => array(
+        'class' => array(
+          'bpi-filters',
+        ),
+      ),
+    );
+
+    $facets_form = array(
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => array(
+        'class' => array(
+          'bpi-facets',
+        ),
+      ),
+    );
+
+    // Use chosen to render select controls?
+    $library = libraries_detect('chosen');
+    $use_chosen = !empty($library['installed']);
+
+    if ($use_chosen) {
+      foreach ($library['files']['css'] as $file => $v) {
+        $form['#attached']['css'][] = $library['library path'] . '/' . $file;
+      }
+      foreach ($library['files']['js'] as $file => $v) {
+        $form['#attached']['js'][] = $library['library path'] . '/' . $file;
+      }
+    }
+
+    foreach ($facets as $name => $terms) {
+      $id = $name;
+      $type = $use_chosen ? 'select' : 'checkboxes';
+      $multiple = TRUE;
+      $options = array();
+      foreach ($terms as $term => $item) {
+        $options[$term] = $item['title'];
+      }
+      $default_value = _bpi_get_query_parameter(array('filter', $name), array());
+
+      $facets_form[$id] = array(
+        '#type' => $type,
+        '#multiple' => $multiple,
+        '#chosen' => $multiple && $use_chosen,
+        '#size' => $multiple ? min(20, count($options)) : NULL,
+        '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
+        '#options' => $options,
+        '#default_value' => $default_value,
+        '#attributes' => array(
+          'data-placeholder' => $multiple ? t('Pick some values') : t('Pick a value'),
+          'data-no-matches' => t('Nothing matches'),
+        ),
+        '#prefix' => '<div class="bpi-facet bpi-facet-' . drupal_html_class($name) . '">',
+        '#suffix' => '</div>',
+      );
+    }
+
+    // Add logical operator.
+    $name = 'logicalOperator';
+    $id = $name;
+    $facets_form[$id] = array(
+      '#type' => 'select',
+      '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
+      '#options' => array(
+        'and' => t('All must apply'),
+        'or' => t('Any must apply'),
+      ),
+      '#default_value' => _bpi_get_query_parameter(array('filter', $name), 'and'),
+      '#weight' => -10,
+    );
+
+    $filter_form['bpi_facets'] = $facets_form;
+
+    $filter_form['bpi_actions'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array(
+          drupal_html_class('container-inline'),
+        ),
+      ),
+    );
+
+    if (_bpi_get_current_filter()) {
+      $filter_form['bpi_actions']['reset_filter'] = array(
+        '#type' => 'item',
+        '#markup' => l(t('Reset filters'), current_path(), array(
+          'query' => _bpi_get_current_search_query(),
+          'attributes' => array(
+            'class' => array('button'),
+          ),
+        )),
+      );
+    }
+
+    $form['bpi_filter'] = $filter_form;
+  }
+}
+
+/**
+ * Get facets as an array.
+ *
+ * For performance reasons facets will only be loaded when no search or
+ * filters are applied.
+ *
+ * @return array|null
+ *   All facets.
+ */
+function bpi_user_get_facets() {
+  // Reload facets if they're not cached locally.
+  $reload = !isset($_SESSION[BPI_USER_ALL_FACETS_KEY]) || !is_array($_SESSION[BPI_USER_ALL_FACETS_KEY]);
+  if (!$reload) {
+    $query = _bpi_get_query_parameter();
+    // Reload if neither text nor filter is applied.
+    $reload = !_bpi_get_current_search_phrase() || !_bpi_get_current_filter();
+  }
+
+  if ($reload) {
+    $bpi = bpi_client_instance();
+    $users = $bpi->searchUsers(
+      array()
+    );
+
+    $agencies = array();
+    foreach ($users as $user) {
+      $agency = $user->getAgency();
+      if ($agency) {
+        $count = isset($agencies[$agency->getId()]) ? $agencies[$agency->getId()]['count'] : 0;
+        $agencies[$agency->getId()] = array(
+          'title' => $agency->getName(),
+          'count' => $count + 1,
+        );
+      }
+    }
+
+    $_SESSION[BPI_USER_ALL_FACETS_KEY] = array(
+      'agency_id' => $agencies,
+    );
+  }
+
+  return $_SESSION[BPI_USER_ALL_FACETS_KEY];
 }
 
 /**
@@ -466,32 +669,29 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
   $items = $variables['items'];
   $channel = isset($variables['#channel']) ? $variables['#channel'] : NULL;
 
-  // If no data, do not process anything.
-  if (empty($items)) {
-    return;
-  }
-
   $has_actions = FALSE;
   $rows = array();
-  foreach ($items as $item) {
-    $name = l($item->getName(), 'admin/bpi/user/' . $item->getId());
-    $email = l($item->getEmail(), 'admin/bpi/user/' . $item->getId());
-    $agency = $item->getAgencyId();
-    $actions = array();
-    if ($channel && bpi_can_edit_channel($channel)) {
-      $actions[] = l(t('Remove'), 'admin/bpi/channel/' . $channel->getID() . '/editor/remove/' . $item->getId());
-      $has_actions = TRUE;
-    }
+  if (!empty($items)) {
+    foreach ($items as $item) {
+      $name = l($item->getName(), 'admin/bpi/user/' . $item->getId());
+      $email = l($item->getEmail(), 'admin/bpi/user/' . $item->getId());
+      $agency = $item->getAgencyId();
+      $actions = array();
+      if ($channel && bpi_can_edit_channel($channel)) {
+        $actions[] = l(t('Remove editor from channel'), 'admin/bpi/channel/' . $channel->getID() . '/editor/remove/' . $item->getId());
+        $has_actions = TRUE;
+      }
 
-    $row = array(
-      'name' => $name,
-      'email' => $email,
-      'agency' => $agency,
-    );
-    if ($actions) {
-      $row['actions'] = implode(' ', $actions);
+      $row = array(
+        'name' => $name,
+        'email' => $email,
+        'agency' => $agency,
+      );
+      if ($actions) {
+        $row['actions'] = implode(' ', $actions);
+      }
+      $rows[] = $row;
     }
-    $rows[] = $row;
   }
 
   $table_head = array(

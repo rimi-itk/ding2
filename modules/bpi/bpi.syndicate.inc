@@ -296,8 +296,6 @@ function bpi_search_get_items() {
 
   $response = bpi_search_content($phrase, $page, $filters, $sort);
 
-  $bpi_nodes = array();
-
   // Get agency_id=>agency cache.
   $agency_cache = array();
   $cache = cache_get(BPI_AGENCY_CACHE);
@@ -305,7 +303,40 @@ function bpi_search_get_items() {
     $agency_cache = $cache->data;
   }
 
-  foreach ($response as $item) {
+  $bpi_nodes = bpi_nodelist_to_array($response);
+
+  // Save changes in agency cache.
+  if (empty($cache) || (!empty($cache) && $agency_cache != $cache->data)) {
+    cache_set(BPI_AGENCY_CACHE, $agency_cache);
+  }
+
+  return $bpi_nodes;
+}
+
+/**
+ * Convert a BPI nodelist into more simple array structure.
+ *
+ * @param \Bpi\Sdk\NodeList $node_list
+ *   The node list.
+ *
+ * @return array|null
+ *   Array of bpi fetched items, in structure:
+ *   - bpi_id: bpi identifier
+ *   - title: item title
+ *   - date: item creation date in the BPI system
+ *   - teaser: content teaser
+ *   - body: content body
+ *   - author: content author
+ *   - category: content category
+ *   - agency: content agency
+ *   - audience: content audience
+ *   - total_count: overall amount of items in the result
+ *   - assets: array of links representing the images content
+ */
+function bpi_nodelist_to_array($node_list) {
+  $bpi_nodes = array();
+
+  foreach ($node_list as $item) {
     /* @var $item \Bpi\Sdk\Item\Node */
     $current_item = $item->getProperties();
     $assets = $item->getAssets();
@@ -330,16 +361,11 @@ function bpi_search_get_items() {
       'agency' => $agency,
       'agency_id' => $agency_id,
       'audience' => isset($current_item['audience']) ? $current_item['audience'] : '',
-      'total_count' => isset($response->total) ? $response->total : 0,
+      'total_count' => isset($node_list->total) ? $node_list->total : 0,
       'assets' => (count($assets) > 0) ? $assets : array(),
       'editable' => !empty($current_item['editable']),
       'syndications' => isset($current_item['syndications']) ? $current_item['syndications'] : NULL,
     );
-  }
-
-  // Save changes in agency cache.
-  if (empty($cache) || (!empty($cache) && $agency_cache != $cache->data)) {
-    cache_set(BPI_AGENCY_CACHE, $agency_cache);
   }
 
   return $bpi_nodes;
@@ -390,62 +416,59 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
   $variables['sticky'] = TRUE;
   $variables['rows'] = array();
 
-  // If no data, do not process anything.
-  if (empty($items)) {
-    return;
-  }
-
   $rows = array();
-  foreach ($items as $i => $item) {
-    $rows[$i]['title'] = sprintf(
-      '<b>%s</b><br />%s',
-      $item['title'],
-      $item['teaser']
-    );
-
-    $rows[$i]['date'] = date_format(new DateTime($item['date']), 'Y-m-d H:i:s');
-    $rows[$i]['syndications'] = $item['syndications'];
-
-    // Add details.
-    $rows[$i]['details'] = '';
-    // Map link text => data.
-    $details = array(
-      'category' => 'category',
-      'author' => 'author',
-      'agency' => 'agency_id',
-      'audience' => 'audience',
-    );
-    foreach ($details as $text => $data) {
-      $rows[$i]['details'] .= sprintf(
-        '%s %s<br/>',
-        bpi_label_mapper($data),
-        l(
-          $item[$text],
-          'admin/bpi',
-          array('query' => _bpi_get_filter_query($data, $item[$data]))
-        )
+  if (!empty($items)) {
+    foreach ($items as $i => $item) {
+      $rows[$i]['title'] = sprintf(
+        '<b>%s</b><br />%s',
+        $item['title'],
+        $item['teaser']
       );
+
+      $rows[$i]['date'] = date_format(new DateTime($item['date']), 'Y-m-d H:i:s');
+      $rows[$i]['syndications'] = $item['syndications'];
+
+      // Add details.
+      $rows[$i]['details'] = '';
+      // Map link text => data.
+      $details = array(
+        'category' => 'category',
+        'author' => 'author',
+        'agency' => 'agency_id',
+        'audience' => 'audience',
+      );
+      foreach ($details as $text => $data) {
+        $rows[$i]['details'] .= sprintf(
+          '%s %s<br/>',
+          bpi_label_mapper($data),
+          l(
+            $item[$text],
+            'admin/bpi',
+            array('query' => _bpi_get_filter_query($data, $item[$data]))
+          )
+        );
+      }
+
+      // Add photos icon as css class.
+      $class = count($item['assets']) > 0 ? 'photos' : 'no-photos';
+      $rows[$i]['photo'] = array('data' => '', 'class' => "bpi-photo $class");
+
+      // Add editable icon as css class.
+      $class = $item['editable'] ? 'editable' : 'not-editable';
+      $rows[$i]['editable'] = array('data' => '', 'class' => "bpi-photo $class");
+
+      // Add action links.
+      $actions = array(
+        l(t('Preview'),
+          'admin/bpi/preview/nojs/' . $item['bpi_id'],
+          array('attributes' => array('class' => 'use-ajax'))
+        ),
+        l(t('Syndicate'),
+          'admin/bpi/syndicate/' . $item['bpi_id']
+        ),
+      );
+      $rows[$i]['actions'] = implode(' ', $actions);
     }
-
-    // Add photos icon as css class.
-    $class = count($item['assets']) > 0 ? 'photos' : 'no-photos';
-    $rows[$i]['photo'] = array('data' => '', 'class' => "bpi-photo $class");
-
-    // Add editable icon as css class.
-    $class = $item['editable'] ? 'editable' : 'not-editable';
-    $rows[$i]['editable'] = array('data' => '', 'class' => "bpi-photo $class");
-
-    // Add action links.
-    $actions = array(
-      l(t('Preview'),
-        'admin/bpi/preview/nojs/' . $item['bpi_id'],
-        array('attributes' => array('class' => 'use-ajax'))
-      ),
-      l(t('Syndicate'),
-        'admin/bpi/syndicate/' . $item['bpi_id']
-      ),
-    );
-    $rows[$i]['actions'] = implode(' ', $actions);
   }
 
   // Unset old data.
