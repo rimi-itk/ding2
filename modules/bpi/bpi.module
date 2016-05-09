@@ -975,6 +975,7 @@ function bpi_user_login(&$edit, $account) {
         }
       }
       catch (\Exception $e) {
+        drupal_set_message(t('Cannot create bpi user !email', array('!email' => $account->mail)), 'error');
         watchdog_exception('bpi', $e, 'Cannot create bpi user ' . $account->uuid . ' ' . $account->mail);
       }
     }
@@ -996,6 +997,7 @@ function bpi_user_update(&$edit, $account, $category) {
         ));
       }
       catch (\Exception $e) {
+        drupal_set_message(t('Cannot update bpi user !email', array('!email' => $account->mail)), 'error');
         watchdog_exception('bpi', $e, 'Cannot update bpi user ' . $account->uuid . ' ' . $account->mail);
       }
     }

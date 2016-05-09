@@ -18,6 +18,8 @@ require_once __DIR__ . '/bpi.syndicate.inc';
  * @ingroup forms
  */
 function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL) {
+  bpi_check_bpi_user_id();
+
   if (bpi_service_is_configured()) {
     drupal_add_library('system', 'drupal.ajax');
 
