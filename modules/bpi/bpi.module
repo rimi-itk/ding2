@@ -347,6 +347,7 @@ function bpi_theme($existing, $type, $theme, $path) {
       'template' => 'bpi-filter-item',
     ),
     'bpi_preview_item' => array(
+      'variables' => array('item' => array(), 'no_actions' => FALSE),
       'path' => $path . '/templates/',
       'template' => 'bpi-preview-item',
     ),
