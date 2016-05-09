@@ -88,6 +88,39 @@ function bpi_menu() {
     'file' => 'bpi.channel.inc',
   );
 
+  $menu['admin/bpi/channel/all'] = array(
+    'title' => 'All channels',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'description' => 'Show all channels.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_list_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/user'] = array(
+    'title' => 'My channels',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show my channels.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_user_channel_list_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
+  $menu['admin/bpi/channel/add'] = array(
+    'title' => 'Add channel',
+    'type' => MENU_LOCAL_ACTION,
+    'description' => 'Add a new channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_edit_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  // "Add channel" should also be available under "My channels".
+  $menu['admin/bpi/channel/user/add'] = $menu['admin/bpi/channel/add'];
+
   $menu['admin/bpi/channel/%'] = array(
     'title' => 'Channel details',
     'description' => 'Show channel details.',
@@ -148,15 +181,6 @@ function bpi_menu() {
     'description' => 'Show all users.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('bpi_user_list_form'),
-    'access callback' => 'bpi_access',
-    'file' => 'bpi.user.inc',
-  );
-
-  $menu['admin/bpi/user/channels'] = array(
-    'title' => 'My channels',
-    'description' => 'Show my channels.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('bpi_user_channel_list_form'),
     'access callback' => 'bpi_access',
     'file' => 'bpi.user.inc',
   );
@@ -244,25 +268,6 @@ function bpi_menu() {
   );
 
   return $menu;
-}
-
-/**
- * Implements hook_menu_local_tasks_alter().
- */
-function bpi_menu_local_tasks_alter(&$data, $router_item, $root_path) {
-  $bpi_paths = array('admin/bpi/channel', 'admin/bpi/user/channels');
-  if (in_array($root_path, $bpi_paths)) {
-    foreach ($bpi_paths as $index => $subpath) {
-      $item = menu_get_item($subpath);
-      if ($item['access']) {
-        $data['actions']['output'][] = array(
-          '#theme' => 'menu_local_action',
-          '#link' => $item,
-          '#weight' => $index,
-        );
-      }
-    }
-  }
 }
 
 /**
