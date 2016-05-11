@@ -577,7 +577,7 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       $admin = $item->getAdmin();
       if ($admin) {
         $administrator = l($admin->getName(), 'admin/bpi/user/' . $admin->getId());
-        $agency = $admin->getAgencyId();
+        $agency = $admin->getAgency()->getName();
       }
       $actions = [];
       if (bpi_can_edit_channel($item)) {

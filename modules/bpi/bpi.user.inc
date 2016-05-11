@@ -556,8 +556,8 @@ function bpi_search_users($query = '', $page = 1, $filters = array(), $sorting =
               break;
 
             case 'agency':
-              $v0 = $c0->getAgencyId();
-              $v1 = $c1->getAgencyId();
+              $v0 = $c0->getAgency()->getName();
+              $v1 = $c1->getAgency()->getName();
               break;
           }
 
@@ -632,7 +632,7 @@ function bpi_build_user_table(array $users) {
     foreach ($users as $user) {
       $name = l($user->getName(), 'admin/bpi/user/' . $user->getId());
       $email = l($user->getEmail(), 'admin/bpi/user/' . $user->getId());
-      $agency = $user->getAgencyId();
+      $agency = $user->getAgency()->getName();
 
       $options[$user->getId()] = array(
         'name' => $name,
@@ -675,7 +675,7 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
     foreach ($items as $item) {
       $name = l($item->getName(), 'admin/bpi/user/' . $item->getId());
       $email = l($item->getEmail(), 'admin/bpi/user/' . $item->getId());
-      $agency = $item->getAgencyId();
+      $agency = $item->getAgency()->getName();
       $actions = array();
       if ($channel && bpi_can_edit_channel($channel)) {
         $actions[] = l(t('Remove editor from channel'), 'admin/bpi/channel/' . $channel->getID() . '/editor/remove/' . $item->getId());
