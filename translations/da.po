@@ -48421,9 +48421,6 @@ msgstr "Fjern redaktør fra kanal"
 msgid "Number of nodes"
 msgstr "Styk indhold"
 
-msgid "Number of editors"
-msgstr "Antal redaktører"
-
 msgid "User has no channels"
 msgstr "Brugeren har ingen kanaler"
 

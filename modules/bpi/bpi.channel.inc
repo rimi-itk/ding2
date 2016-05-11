@@ -461,11 +461,6 @@ function bpi_search_channels($query = '', $page = 1, $filters = array(), $sortin
               $v0 = count($c0->getNodes());
               $v1 = count($c1->getNodes());
               break;
-
-            case 'editors':
-              $v0 = count($c0->getEditors());
-              $v1 = count($c1->getEditors());
-              break;
           }
 
           if (is_numeric($v0) && is_numeric($v1)) {
@@ -551,10 +546,6 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       'class' => array('bpi-nodes', _bpi_get_current_sorting('nodes') ? 'active' : ''),
     ),
     array(
-      'data' => bpi_get_sort_link(t('Number of editors'), 'editors'),
-      'class' => array('bpi-editors', _bpi_get_current_sorting('editors') ? 'active' : ''),
-    ),
-    array(
       'data' => t('Actions'),
       'class' => 'bpi-actions',
     ),
@@ -591,7 +582,6 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
         'administrator' => $administrator,
         'agency' => $agency,
         'nodes' => count($item->getNodes()),
-        'editors' => count($item->getEditors()),
         'actions' => implode(' ', $actions),
       );
 
