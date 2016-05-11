@@ -9,7 +9,7 @@
 	<div class="description"><?php echo $channel->getDescription(); ?></div>
 
 	<div>
-		<?php echo t('Channel administrator'); ?>: <?php echo l($channel->getAdmin()->getName(), 'admin/bpi/user/' . $channel->getAdmin()->getId()); ?>
+		<?php echo t('Channel administrator'); ?>: <?php echo l($channel->getAdmin()->getName(), 'admin/bpi/user/' . $channel->getAdmin()->getId()); ?>, <?php echo $channel->getAdmin()->getAgency()->getName(); ?>
 	</div>
 
 	<h2><?php echo t('Channel editors'); ?></h2>
