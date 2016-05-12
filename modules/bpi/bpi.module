@@ -82,8 +82,7 @@ function bpi_menu() {
     'title' => 'Channels',
     'type' => MENU_LOCAL_TASK,
     'description' => 'Show all channels.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('bpi_channel_list_form'),
+    'page callback' => 'bpi_channel_list',
     'access callback' => 'bpi_access',
     'file' => 'bpi.channel.inc',
   );
@@ -92,8 +91,7 @@ function bpi_menu() {
     'title' => 'All channels',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'description' => 'Show all channels.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('bpi_channel_list_form'),
+    'page callback' => 'bpi_channel_list',
     'access callback' => 'bpi_access',
     'file' => 'bpi.channel.inc',
   );
@@ -102,8 +100,7 @@ function bpi_menu() {
     'title' => 'My channels',
     'type' => MENU_LOCAL_TASK,
     'description' => 'Show my channels.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('bpi_user_channel_list_form'),
+    'page callback' => 'bpi_user_channel_list',
     'access callback' => 'bpi_access',
     'file' => 'bpi.user.inc',
   );
@@ -114,6 +111,14 @@ function bpi_menu() {
     'description' => 'Add a new channel.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('bpi_channel_edit_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/subscription'] = array(
+    'title' => 'Subscribe to channel',
+    'description' => 'Subscribe current user to a channel.',
+    'page callback' => 'bpi_channel_subscription',
     'access callback' => 'bpi_access',
     'file' => 'bpi.channel.inc',
   );

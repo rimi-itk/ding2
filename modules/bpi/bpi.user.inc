@@ -475,6 +475,13 @@ function bpi_user_list_form_add_editors_to_channel_submit(array $form, array &$f
   drupal_goto('admin/bpi/channel/' . $channel_id);
 }
 
+function bpi_user_channel_list() {
+  return array(
+    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
+    'bpi_user_channel_list_form' => drupal_get_form('bpi_user_channel_list_form'),
+  );
+}
+
 /**
  * Show all channels or channels having a user as administrator or editor.
  *

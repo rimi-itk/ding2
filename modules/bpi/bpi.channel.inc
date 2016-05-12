@@ -5,9 +5,61 @@
  */
 
 use Bpi\Sdk\Item\Channel;
+use Bpi\Sdk\Item\User;
 
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
+
+function bpi_channel_list() {
+  return array(
+    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
+    'bpi_channel_list_form' => drupal_get_form('bpi_channel_list_form'),
+  );
+}
+
+/**
+ * Create form for creating/deleting channel subscriptions.
+ */
+function bpi_channel_subscription_form() {
+  return array(
+    '#type' => 'form',
+    '#action' => '/admin/bpi/channel/subscription',
+    '#id' => 'bpi-channel-subscription-form',
+    'channel_id' => array(
+      '#type' => 'hidden',
+      '#value' => '',
+    ),
+    'command' => array(
+      '#type' => 'hidden',
+      '#value' => '',
+    ),
+    'redirect' => array(
+      '#type' => 'hidden',
+      '#value' => request_uri(),
+    ),
+    'script' => array(
+      '#type' => 'item',
+      '#markup' => <<<JS
+<script>
+var BpiChannel = {
+  subscribe: function(channelId) {
+    var form = document.getElementById('bpi-channel-subscription-form');
+    form.command.value = 'subscribe';
+    form.channel_id.value = channelId;
+    form.submit();
+  },
+  unsubscribe: function(channelId) {
+    var form = document.getElementById('bpi-channel-subscription-form');
+    form.command.value = 'unsubscribe';
+    form.channel_id.value = channelId;
+    form.submit();
+  }
+};
+</script>
+JS
+    ),
+  );
+}
 
 /**
  * Define channels page markup.
@@ -309,6 +361,127 @@ function bpi_channel_delete_form_submit(array $form, array &$form_state) {
   }
 }
 
+function bpi_channel_subscription() {
+  $user = bpi_get_user();
+  $command = isset($_POST['command']) ? $_POST['command'] : NULL;
+  $channel_id = isset($_POST['channel_id']) ? $_POST['channel_id'] : NULL;
+  $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'admin/bpi/channel';
+
+  $channel = bpi_get_channel($channel_id);
+  if (!$channel) {
+    drupal_set_message(t('No such channel: %channel', array('%channel' => $channel_id)), 'error');
+    return drupal_goto($redirect);
+  }
+
+  $title = _bpi_get_channel_subscription_title($user, $channel);
+
+  switch ($command) {
+    case 'subscribe':
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->createSubscription($user->getId(), array(
+            'title' => $title,
+            'filter' => array(
+              'channels' => array($channel->getId()),
+            ),
+          ));
+        drupal_set_message(t('Subscription on channel %channel created', array('%channel' => $channel->getName())));
+      }
+      catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+        drupal_set_message(t('Cannot subscribe to channel %channel', array('%channel' => $channel->getName())), 'error');
+      }
+      break;
+
+    case 'unsubscribe':
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->deleteSubscription($user->getId(), $title);
+        drupal_set_message(t('Subscription on channel %channel deleted', array('%channel' => $channel->getName())));
+      }
+      catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+        drupal_set_message(t('Cannot unsubscribe from channel %channel', array('%channel' => $channel->getName())), 'error');
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return drupal_goto($redirect);
+}
+
+/**
+ * Create a subscription to a channel for the current user.
+ *
+ * @param string $channel_id
+ */
+function bpi_channel_subscribe($channel_id) {
+  $user = bpi_get_user();
+  $channel = bpi_get_channel($channel_id);
+  if (!$channel) {
+    drupal_set_message(t('No such channel: %channel', array('%channel' => $channel_id)), 'error');
+    return drupal_goto('admin/bpi/channel');
+  }
+
+  $title = _bpi_get_channel_subscription_title($user, $channel);
+
+  try {
+    $bpi = bpi_client_instance();
+    $bpi->createSubscription($user->getId(), array(
+        'title' => $title,
+        'filter' => array(
+          'channels' => array($channel->getId()),
+        ),
+      ));
+    drupal_set_message(t('Channel subscription created'));
+  }
+  catch (\Exception $e) {
+    watchdog_exception('bpi', $e);
+    drupal_set_message(t('Cannot subscribe to channel %channel', array('%channel' => $channel_id)), 'error');
+  }
+
+  return drupal_goto('admin/bpi/channel');
+}
+
+/**
+ * Remove a subscription to a channel for the current user.
+ *
+ * @param string $channel_id
+ */
+function bpi_channel_unsubscribe($channel_id) {
+  $user = bpi_get_user();
+  $channel = bpi_get_channel($channel_id);
+  if (!$channel) {
+    drupal_set_message(t('No such channel: %channel', array('%channel' => $channel_id)), 'error');
+    return drupal_goto('admin/bpi/channel');
+  }
+
+  $title = _bpi_get_channel_subscription_title($user, $channel);
+
+  try {
+    $bpi = bpi_client_instance();
+    $bpi->deleteSubscription($user->getId(), $title);
+    drupal_set_message(t('Channel subscription deleted'));
+  }
+  catch (\Exception $e) {
+    watchdog_exception('bpi', $e);
+    drupal_set_message(t('Cannot unsubscribe from channel %channel', array('%channel' => $channel_id)), 'error');
+  }
+
+  return drupal_goto('admin/bpi/channel');
+}
+
+/**
+ * Get title for a channel subscription for a user.
+ *
+ * Subscriptions must have unique names (per user).
+ */
+function _bpi_get_channel_subscription_title(User $user, Channel $channel) {
+  return '### ' . $user->getId() . ' - ' . $channel->getId() . ' ###';
+}
+
 /**
  * Get current user's bpi user id.
  *
@@ -376,7 +549,10 @@ function bpi_get_channel($id) {
  * @return \Bpi\Sdk\Item\User|null
  *   The user if found.
  */
-function bpi_get_user($id) {
+function bpi_get_user($id = NULL) {
+  if ($id === NULL) {
+    $id = bpi_get_current_bpi_user_id();
+  }
   try {
     $bpi = bpi_client_instance();
 
@@ -528,6 +704,8 @@ function theme_bpi_channel_list(array $variables) {
 function bpi_preprocess_bpi_channel_list(array &$variables) {
   $items = $variables['items'];
 
+  $user = bpi_get_user();
+
   $table_head = array(
     array(
       'data' => bpi_get_sort_link(t('Title'), 'title'),
@@ -555,6 +733,10 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       'class' => array('bpi-node-last-added-at', _bpi_get_current_sorting('node_last_added_at') ? 'active' : ''),
     ),
     array(
+      'data' => bpi_get_sort_link(t('Subscribed to channel?'), 'subscribed_to_channel'),
+      'class' => array('bpi-subscribed-to-channel', _bpi_get_current_sorting('subscribed_to_channel') ? 'active' : ''),
+    ),
+    array(
       'data' => t('Actions'),
       'class' => 'bpi-actions',
     ),
@@ -579,11 +761,20 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
         $administrator = l($admin->getName(), 'admin/bpi/user/' . $admin->getId());
         $agency = $admin->getAgency()->getName();
       }
+      $is_subscribed = _bpi_channel_is_subscribed($user, $item);
+      $subscribed_to_channel = array(
+        'data' => $is_subscribed ? t('Yes') : t('No'),
+        'class' => $is_subscribed ? 'bpi-is-subscribed' : 'bpi-is-not-subscribed'
+      );
+
       $actions = [];
       if (bpi_can_edit_channel($item)) {
         $actions[] = l(t('Edit'), 'admin/bpi/channel/' . $item->getId() . '/edit');
         $actions[] = l(t('Delete'), 'admin/bpi/channel/' . $item->getId() . '/delete');
       }
+      $actions[] = $is_subscribed
+                 ? '<a href="#" onclick="BpiChannel.unsubscribe(\'' . $item->getId() . '\')">' . t('Unsubscribe from channel') . '</a>'
+                 : '<a href="#" onclick="BpiChannel.subscribe(\'' . $item->getId() . '\')">' . t('Subscribe to channel') . '</a>';
 
       $row = array(
         'title' => $title,
@@ -592,6 +783,7 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
         'agency' => $agency,
         'nodes' => count($item->getNodes()),
         'node_last_added_at' => $item->getNodeLastAddedAt() ? $item->getNodeLastAddedAt()->format('Y-m-d H:i:s') : NULL,
+        'subscribed_to_channel' => $subscribed_to_channel,
         'actions' => implode(' ', $actions),
       );
 
@@ -604,6 +796,20 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
 
   // Set table data.
   $variables['rows'] = $rows;
+}
+
+function _bpi_channel_is_subscribed(User $user, Channel $channel) {
+  if (!$channel || !$user->getSubscriptions()) {
+    return FALSE;
+  }
+
+  $title = _bpi_get_channel_subscription_title($user, $channel);
+
+  return !empty(array_filter($user->getSubscriptions(), function($subscription) use ($channel, $title) {
+    $filter = $subscription->getFilter();
+    return $subscription->getTitle() == $title
+      && isset($filter['channels']) && is_array($filter['channels']) && in_array($channel->getId(), $filter['channels']);
+  }));
 }
 
 /**
