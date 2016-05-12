@@ -38,6 +38,12 @@
 		</ul>
 	<?php endif ?>
 
+  <?php if ($channel->getNodeLastAddedAt()): ?>
+    <p>
+      <?php echo t('Node last added to channel at !timestamp', array('!timestamp' => $channel->getNodeLastAddedAt()->format('Y-m-d H:i:s'))); ?>
+    </p>
+  <?php endif ?>
+
 	<?php echo theme('bpi_channel_node_list', array(
     'items' => $nodes,
     '#channel' => $channel,

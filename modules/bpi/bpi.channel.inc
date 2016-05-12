@@ -461,6 +461,11 @@ function bpi_search_channels($query = '', $page = 1, $filters = array(), $sortin
               $v0 = count($c0->getNodes());
               $v1 = count($c1->getNodes());
               break;
+
+            case 'node_last_added_at':
+              $v0 = $c0->getNodeLastAddedAt() ? $c0->getNodeLastAddedAt()->format('c') : NULL;
+              $v1 = $c1->getNodeLastAddedAt() ? $c1->getNodeLastAddedAt()->format('c') : NULL;
+              break;
           }
 
           if (is_numeric($v0) && is_numeric($v1)) {
@@ -546,6 +551,10 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       'class' => array('bpi-nodes', _bpi_get_current_sorting('nodes') ? 'active' : ''),
     ),
     array(
+      'data' => bpi_get_sort_link(t('Node last added at'), 'node_last_added_at'),
+      'class' => array('bpi-node-last-added-at', _bpi_get_current_sorting('node_last_added_at') ? 'active' : ''),
+    ),
+    array(
       'data' => t('Actions'),
       'class' => 'bpi-actions',
     ),
@@ -582,6 +591,7 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
         'administrator' => $administrator,
         'agency' => $agency,
         'nodes' => count($item->getNodes()),
+        'node_last_added_at' => $item->getNodeLastAddedAt() ? $item->getNodeLastAddedAt()->format('Y-m-d H:i:s') : NULL,
         'actions' => implode(' ', $actions),
       );
 
