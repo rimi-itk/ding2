@@ -5,7 +5,7 @@
  */
 
 // We want to reuse some helper functions.
-require_once __DIR__ . '/bpi.channel.inc';
+require_once __DIR__ . '/bpi.syndicate.inc';
 
 /**
  * Key for storing user facets in session.
@@ -729,4 +729,59 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
 
   // Unset old data.
   unset($variables['items']);
+}
+
+
+
+/**
+ * Get a user by id.
+ *
+ * @param string $id
+ *   The user id.
+ *
+ * @return \Bpi\Sdk\Item\User|null
+ *   The user if found.
+ */
+function bpi_get_user($id = NULL) {
+  if ($id === NULL) {
+    $id = bpi_get_current_bpi_user_id();
+  }
+  try {
+    $bpi = bpi_client_instance();
+
+    $user = $bpi->getUser($id);
+
+    return $user;
+  }
+  catch (\Exception $e) {
+    watchdog_exception('bpi', $e);
+    // drupal_set_message(t('Failed to fetch user. Check reports for more information.'), 'error');
+  }
+
+  return NULL;
+}
+
+/**
+ * Get current Drupal user's BPI user id.
+ *
+ * @return string|null
+ *   The bpi user id if any.
+ */
+function bpi_get_current_bpi_user_id() {
+  global $user;
+
+  return isset($user->data['bpi_user_id']) ? $user->data['bpi_user_id'] : NULL;
+}
+
+/**
+ * Check if current Drupal user has a valid BPI user.
+ *
+ * A warning is displayed if no valid BPI user is found.
+ */
+function bpi_check_bpi_user() {
+  global $user;
+
+  if (empty(bpi_get_current_bpi_user_id()) || empty(bpi_get_user())) {
+    drupal_set_message(t('Current user (!email) does not have a valid BPI user id', array('!email' => $user->mail)), 'warning');
+  }
 }

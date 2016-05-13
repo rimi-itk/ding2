@@ -9,6 +9,7 @@ use Bpi\Sdk\Item\User;
 
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
+require_once __DIR__ . '/bpi.user.inc';
 
 /**
  * Define channels page markup.
@@ -484,18 +485,6 @@ function _bpi_get_channel_subscription_title($user, $channel) {
 }
 
 /**
- * Get current user's bpi user id.
- *
- * @return string|null
- *   The bpi user id if any.
- */
-function bpi_get_current_bpi_user_id() {
-  global $user;
-
-  return isset($user->data['bpi_user_id']) ? $user->data['bpi_user_id'] : NULL;
-}
-
-/**
  * Get all channels or channels having a user as administrator or editor.
  *
  * @param string|null $user_id
@@ -536,34 +525,6 @@ function bpi_get_channel($id) {
   catch (\Exception $e) {
     watchdog_exception('bpi', $e);
     drupal_set_message(t('Failed to fetch channel. Check reports for more information.'), 'error');
-  }
-
-  return NULL;
-}
-
-/**
- * Get a user by id.
- *
- * @param string $id
- *   The user id.
- *
- * @return \Bpi\Sdk\Item\User|null
- *   The user if found.
- */
-function bpi_get_user($id = NULL) {
-  if ($id === NULL) {
-    $id = bpi_get_current_bpi_user_id();
-  }
-  try {
-    $bpi = bpi_client_instance();
-
-    $user = $bpi->getUser($id);
-
-    return $user;
-  }
-  catch (\Exception $e) {
-    watchdog_exception('bpi', $e);
-    // drupal_set_message(t('Failed to fetch user. Check reports for more information.'), 'error');
   }
 
   return NULL;
@@ -1069,12 +1030,4 @@ function bpi_can_contribute_to_channel(Channel $channel) {
     }
   }
   return FALSE;
-}
-
-function bpi_check_bpi_user() {
-  global $user;
-
-  if (empty(bpi_get_current_bpi_user_id()) || empty(bpi_get_user())) {
-    drupal_set_message(t('Current user (!email) does not have a valid BPI user id', array('!email' => $user->mail)), 'warning');
-  }
 }
