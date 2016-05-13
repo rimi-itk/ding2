@@ -943,6 +943,7 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
         return;
       }
 
+      // Subscriptions must have unique names (for each user).
       if (array_filter($user->getSubscriptions(), function($subscription) use ($title) {
         return $subscription->getTitle() == $title;
       })) {
@@ -956,11 +957,14 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
             'title' => $title,
             'filter' => _bpi_get_current_filter(),
           ));
-        drupal_set_message(t('Subscription %title created', array('%title' => $title)));
       } catch (\Exception $e) {
         watchdog_exception('bpi', $e);
         drupal_set_message(t('Error creating subscription'), 'error');
+        return;
       }
+
+      drupal_set_message(t('Subscription %title created', array('%title' => $title)));
+      bpi_flush_user();
 
       break;
 
@@ -994,6 +998,7 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
       }
 
       drupal_set_message(t('Subscription %title updated', array('%title' => $selected_subscription->getTitle())));
+      bpi_flush_user();
       break;
 
     case 'subscription_delete':
@@ -1011,6 +1016,7 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
       }
 
       drupal_set_message(t('Subscription %title deleted', array('%title' => $selected_subscription->getTitle())));
+      bpi_flush_user();
       break;
   }
 }

@@ -736,6 +736,14 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
 /**
  * Get a user by id.
  *
+ * For performance reasons (i.e. not hitting the web service too much) we cache
+ * the user in the session.
+ *
+ * Note: We handle (un)serialize'ing of the User object ourselves in order to
+ * make it work with autoloading of the class. If we let Drupal handle the
+ * unserialization, it is done before the class can be autoloaded which causes
+ * an error.
+ *
  * @param string $id
  *   The user id.
  *
@@ -743,22 +751,43 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
  *   The user if found.
  */
 function bpi_get_user($id = NULL) {
+  $is_current_user = FALSE;
   if ($id === NULL) {
     $id = bpi_get_current_bpi_user_id();
+    $is_current_user = TRUE;
   }
   try {
+    if ($is_current_user && isset($_SESSION['BPI_CURRENT_USER'])) {
+      // Hand held unserialize'ing (cf. note in doc comment).
+      $user = @unserialize($_SESSION['BPI_CURRENT_USER']);
+      if ($user) {
+        return $user;
+      }
+    }
     $bpi = bpi_client_instance();
 
+    $bpi = bpi_client_instance();
     $user = $bpi->getUser($id);
+
+    if ($is_current_user) {
+      // Hand held serialize'ing (cf. note in doc comment).
+      $_SESSION['BPI_CURRENT_USER'] = @serialize($user);
+    }
 
     return $user;
   }
   catch (\Exception $e) {
     watchdog_exception('bpi', $e);
-    // drupal_set_message(t('Failed to fetch user. Check reports for more information.'), 'error');
   }
 
   return NULL;
+}
+
+/**
+ * Remove current user from cache.
+ */
+function bpi_flush_user() {
+  unset($_SESSION['BPI_CURRENT_USER']);
 }
 
 /**
