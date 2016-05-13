@@ -764,7 +764,6 @@ function bpi_get_user($id = NULL) {
         return $user;
       }
     }
-    $bpi = bpi_client_instance();
 
     $bpi = bpi_client_instance();
     $user = $bpi->getUser($id);
