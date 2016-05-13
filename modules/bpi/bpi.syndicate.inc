@@ -849,6 +849,12 @@ function bpi_build_search_facets(array &$form) {
   }
 }
 
+/**
+ * Build list of and actions for user's subscriptions.
+ *
+ * @param array $form
+ *   The form.
+ */
 function bpi_build_subscriptions(array &$form) {
   $user = bpi_get_user();
 
@@ -925,6 +931,16 @@ function bpi_build_subscriptions(array &$form) {
   }
 }
 
+/**
+ * Submit handler for subscriptions.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @see bpi_build_subscriptions()
+ */
 function bpi_syndicate_subscription_form_submit(array $form, array &$form_state) {
   $action = $form_state['triggering_element']['#name'];
   $user = bpi_get_user();
