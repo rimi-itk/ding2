@@ -17,9 +17,9 @@
     };
 
     $('form.bpi').on('submit', showLoading);
-    $('.bpi .button').on('click', showLoading);
+    $('#edit-bpi-search .button, #edit-bpi-filter .button').on('click', showLoading);
 
-    $('#bpi-syndicate-page-form select').change(function() {
+    $('#edit-bpi-filter select').change(function() {
       // Trigger jQuery submit to make sure that any on submit handlers are run.
       $(this.form).submit();
     });
