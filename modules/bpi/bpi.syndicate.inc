@@ -4,6 +4,8 @@
  * Syndication logic here.
  */
 
+require_once __DIR__ . '/bpi.channel.inc';
+
 /**
  * Cache ID for agency_id => agency_name mapping.
  */
@@ -92,8 +94,9 @@ function bpi_syndicate_page_form($form, &$form_state) {
 
     // Must be called before building facets ui.
     $items = bpi_search_get_items();
-
     bpi_build_search_facets($query_form);
+
+    bpi_build_subscriptions($query_form);
 
     $total_items = isset($items[0]['total_count']) ? $items[0]['total_count'] : 0;
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
@@ -841,6 +844,167 @@ function bpi_build_search_facets(array &$form) {
     }
 
     $form['bpi_filter'] = $filter_form;
+  }
+}
+
+function bpi_build_subscriptions(array &$form) {
+  $form['bpi_subscriptions'] = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'class' => array(
+        drupal_html_class('container-inline'),
+      ),
+    ),
+  );
+
+  $user = bpi_get_user();
+
+  $active_subscription = NULL;
+  $active_filter = _bpi_get_current_filter();
+  $user_subscriptions = array();
+  foreach ($user->getSubscriptions() as $subscription) {
+    if (!preg_match('/^#+.+#+$/', $subscription->getTitle())) {
+      $user_subscriptions[] = $subscription;
+      if ($subscription->getFilter() == $active_filter) {
+        $active_subscription = $subscription;
+      }
+    }
+  }
+
+  $user_subscription_titles = array_map(function($subscription) {
+    return $subscription->getTitle();
+  }, $user_subscriptions);
+
+  $options = array('' => '') + array_combine($user_subscription_titles, $user_subscription_titles);
+
+  $form['bpi_subscriptions']['subscription_id'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $active_subscription ? $active_subscription->getTitle() : NULL,
+  );
+
+  $form['bpi_subscriptions']['subscription_apply'] = array(
+    '#type' => 'submit',
+    '#submit' => array('bpi_syndicate_subscription_form_submit'),
+    '#value' => t('Apply subscription'),
+    '#name' => 'subscription_apply',
+  );
+  $form['bpi_subscriptions']['subscription_update'] = array(
+    '#type' => 'submit',
+    '#submit' => array('bpi_syndicate_subscription_form_submit'),
+    '#value' => t('Update subscription'),
+    '#name' => 'subscription_update',
+  );
+  $form['bpi_subscriptions']['subscription_delete'] = array(
+    '#type' => 'submit',
+    '#submit' => array('bpi_syndicate_subscription_form_submit'),
+    '#value' => t('Delete subscription'),
+    '#name' => 'subscription_delete',
+  );
+
+  if (_bpi_is_filter_applied() && !$active_subscription) {
+    $form['bpi_subscriptions']['subscription_title'] = array(
+      '#type' => 'textfield',
+      '#attributes' => array(
+        'placeholder' => t('Subscription title'),
+      ),
+    );
+    $form['bpi_subscriptions']['subscription_create'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Create subscription'),
+      '#name' => 'subscription_create',
+    );
+  }
+}
+
+function bpi_syndicate_subscription_form_submit(array $form, array &$form_state) {
+  $action = $form_state['triggering_element']['#name'];
+  $user = bpi_get_user();
+
+  $subscription_id = $form_state['values']['subscription_id'];
+  $subscriptions = array_filter($user->getSubscriptions(), function($subscription) use ($subscription_id) {
+    return $subscription->getTitle() == $subscription_id;
+  });
+  $selected_subscription = count($subscriptions) > 0 ? array_shift($subscriptions) : NULL;
+
+  switch ($action) {
+    case 'subscription_create':
+      $title = trim($form_state['values']['subscription_title']);
+      if (empty($title)) {
+        drupal_set_message(t('Please specify a subscription title'), 'error');
+        return;
+      }
+
+      if (array_filter($user->getSubscriptions(), function($subscription) use ($title) {
+        return $subscription->getTitle() == $title;
+      })) {
+        drupal_set_message(t('Subscription %title already exists', array('%title' => $title)), 'error');
+        return;
+      }
+
+      $bpi = bpi_client_instance();
+      try {
+        $bpi->createSubscription($user->getId(), array(
+            'title' => $title,
+            'filter' => _bpi_get_current_filter(),
+          ));
+        drupal_set_message(t('Subscription %title created', array('%title' => $title)));
+      } catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+        drupal_set_message(t('Error creating subscription'), 'error');
+      }
+
+      break;
+
+    case 'subscription_apply':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title applied', array('%title' => $selected_subscription->getTitle())));
+      drupal_goto('admin/bpi', array('query' => array('filter' => $selected_subscription->getFilter())));
+
+      break;
+
+    case 'subscription_update':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
+        $bpi->createSubscription($user->getId(), array(
+            'title' => $selected_subscription->getTitle(),
+            'filter' => _bpi_get_current_filter(),
+          ));
+      } catch (\Exception $e) {
+        drupal_set_message(t('Cannot update subscription %id', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title updated', array('%title' => $selected_subscription->getTitle())));
+      break;
+
+    case 'subscription_delete':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
+      } catch (\Exception $e) {
+        drupal_set_message(t('Cannot delete subscription %id', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title deleted', array('%title' => $selected_subscription->getTitle())));
+      break;
   }
 }
 
