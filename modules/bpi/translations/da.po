@@ -564,22 +564,22 @@ msgid "Subscription title"
 msgstr "Abonnementstitel"
 
 msgid "Please specify a subscription title"
-msgstr "Angiv venligst en titel for abonnementet"
+msgstr "Angiv venligst en titel for abonnement"
 
 msgid "Subscription %title already exists"
-msgstr "Abonnementet %title findes allerede"
+msgstr "Abonnement %title findes allerede"
 
 msgid "Subscription %title created"
-msgstr "Abonnementet %title oprettet"
+msgstr "Abonnement %title oprettet"
 
 msgid "Error creation subscription"
 msgstr "Fejl under oprettelse af abonnement"
 
 msgid "Subscription %title already exists"
-msgstr "Abonnementet %title findes allerede"
+msgstr "Abonnement %title findes allerede"
 
 msgid "Subscription %id does not exists"
-msgstr "Abonnementet %id findes ikke"
+msgstr "Abonnement %id findes ikke"
 
 msgid "Subscription %title applied"
 msgstr ""
@@ -588,10 +588,10 @@ msgid "Cannot update subscription %title"
 msgstr "Fejl under opdatering af abonnement %title"
 
 msgid "Subscription %title updated"
-msgstr "Abonnementet %title opdatering"
+msgstr "Abonnement %title opdatering"
 
 msgid "Cannot delete subscription %title"
-msgstr "Fejl under sletning af abonnementet %title"
+msgstr "Fejl under sletning af abonnement %title"
 
 msgid "Subscription %title deleted"
-msgstr "Abonnementet %title slettet"
+msgstr "Abonnement %title slettet"
