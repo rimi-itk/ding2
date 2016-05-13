@@ -10,57 +10,6 @@ use Bpi\Sdk\Item\User;
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
 
-function bpi_channel_list() {
-  return array(
-    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
-    'bpi_channel_list_form' => drupal_get_form('bpi_channel_list_form'),
-  );
-}
-
-/**
- * Create form for creating/deleting channel subscriptions.
- */
-function bpi_channel_subscription_form() {
-  return array(
-    '#type' => 'form',
-    '#action' => '/admin/bpi/channel/subscription',
-    '#id' => 'bpi-channel-subscription-form',
-    'channel_id' => array(
-      '#type' => 'hidden',
-      '#value' => '',
-    ),
-    'command' => array(
-      '#type' => 'hidden',
-      '#value' => '',
-    ),
-    'redirect' => array(
-      '#type' => 'hidden',
-      '#value' => request_uri(),
-    ),
-    'script' => array(
-      '#type' => 'item',
-      '#markup' => <<<JS
-<script>
-var BpiChannel = {
-  subscribe: function(channelId) {
-    var form = document.getElementById('bpi-channel-subscription-form');
-    form.command.value = 'subscribe';
-    form.channel_id.value = channelId;
-    form.submit();
-  },
-  unsubscribe: function(channelId) {
-    var form = document.getElementById('bpi-channel-subscription-form');
-    form.command.value = 'unsubscribe';
-    form.channel_id.value = channelId;
-    form.submit();
-  }
-};
-</script>
-JS
-    ),
-  );
-}
-
 /**
  * Define channels page markup.
  *
@@ -70,9 +19,9 @@ JS
  * @ingroup forms
  */
 function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL) {
-  bpi_check_bpi_user_id();
-
   if (bpi_service_is_configured()) {
+    bpi_check_bpi_user();
+
     drupal_add_library('system', 'drupal.ajax');
 
     $items = bpi_get_channels($user_id);
@@ -169,6 +118,58 @@ function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL)
   }
 
   return $form;
+}
+
+
+function bpi_channel_list() {
+  return array(
+    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
+    'bpi_channel_list_form' => drupal_get_form('bpi_channel_list_form'),
+  );
+}
+
+/**
+ * Create form for creating/deleting channel subscriptions.
+ */
+function bpi_channel_subscription_form() {
+  return array(
+    '#type' => 'form',
+    '#action' => '/admin/bpi/channel/subscription',
+    '#id' => 'bpi-channel-subscription-form',
+    'channel_id' => array(
+      '#type' => 'hidden',
+      '#value' => '',
+    ),
+    'command' => array(
+      '#type' => 'hidden',
+      '#value' => '',
+    ),
+    'redirect' => array(
+      '#type' => 'hidden',
+      '#value' => request_uri(),
+    ),
+    'script' => array(
+      '#type' => 'item',
+      '#markup' => <<<JS
+<script>
+var BpiChannel = {
+  subscribe: function(channelId) {
+    var form = document.getElementById('bpi-channel-subscription-form');
+    form.command.value = 'subscribe';
+    form.channel_id.value = channelId;
+    form.submit();
+  },
+  unsubscribe: function(channelId) {
+    var form = document.getElementById('bpi-channel-subscription-form');
+    form.command.value = 'unsubscribe';
+    form.channel_id.value = channelId;
+    form.submit();
+  }
+};
+</script>
+JS
+    ),
+  );
 }
 
 /**
@@ -478,7 +479,7 @@ function bpi_channel_unsubscribe($channel_id) {
  *
  * Subscriptions must have unique names (per user).
  */
-function _bpi_get_channel_subscription_title(User $user, Channel $channel) {
+function _bpi_get_channel_subscription_title($user, $channel) {
   return '### ' . $user->getId() . ' - ' . $channel->getId() . ' ###';
 }
 
@@ -562,7 +563,7 @@ function bpi_get_user($id = NULL) {
   }
   catch (\Exception $e) {
     watchdog_exception('bpi', $e);
-    drupal_set_message(t('Failed to fetch user. Check reports for more information.'), 'error');
+    // drupal_set_message(t('Failed to fetch user. Check reports for more information.'), 'error');
   }
 
   return NULL;
@@ -762,19 +763,21 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
         $agency = $admin->getAgency()->getName();
       }
       $is_subscribed = _bpi_channel_is_subscribed($user, $item);
-      $subscribed_to_channel = array(
+      $subscribed_to_channel = $user ? array(
         'data' => $is_subscribed ? t('Yes') : t('No'),
         'class' => $is_subscribed ? 'bpi-is-subscribed' : 'bpi-is-not-subscribed'
-      );
+      ) : '';
 
       $actions = [];
       if (bpi_can_edit_channel($item)) {
         $actions[] = l(t('Edit'), 'admin/bpi/channel/' . $item->getId() . '/edit');
         $actions[] = l(t('Delete'), 'admin/bpi/channel/' . $item->getId() . '/delete');
       }
-      $actions[] = $is_subscribed
-                 ? '<a href="#" onclick="BpiChannel.unsubscribe(\'' . $item->getId() . '\')">' . t('Unsubscribe from channel') . '</a>'
-                 : '<a href="#" onclick="BpiChannel.subscribe(\'' . $item->getId() . '\')">' . t('Subscribe to channel') . '</a>';
+      if ($user) {
+        $actions[] = $is_subscribed
+                   ? '<a href="#" onclick="BpiChannel.unsubscribe(\'' . $item->getId() . '\')">' . t('Unsubscribe from channel') . '</a>'
+                   : '<a href="#" onclick="BpiChannel.subscribe(\'' . $item->getId() . '\')">' . t('Subscribe to channel') . '</a>';
+      }
 
       $row = array(
         'title' => $title,
@@ -798,8 +801,8 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
   $variables['rows'] = $rows;
 }
 
-function _bpi_channel_is_subscribed(User $user, Channel $channel) {
-  if (!$channel || !$user->getSubscriptions()) {
+function _bpi_channel_is_subscribed($user, $channel) {
+  if (!$user || !$channel || !$user->getSubscriptions()) {
     return FALSE;
   }
 
@@ -1068,10 +1071,10 @@ function bpi_can_contribute_to_channel(Channel $channel) {
   return FALSE;
 }
 
-function bpi_check_bpi_user_id() {
+function bpi_check_bpi_user() {
   global $user;
 
-  if (empty(bpi_get_current_bpi_user_id())) {
+  if (empty(bpi_get_current_bpi_user_id()) || empty(bpi_get_user())) {
     drupal_set_message(t('Current user (!email) does not have a valid BPI user id', array('!email' => $user->mail)), 'warning');
   }
 }

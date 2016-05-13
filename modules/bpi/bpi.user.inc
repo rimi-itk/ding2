@@ -25,6 +25,8 @@ define('BPI_USER_ALL_FACETS_KEY', 'BPI_USER_ALL_FACETS');
  */
 function bpi_user_list_form(array $form, array &$form_state) {
   if (bpi_service_is_configured()) {
+    bpi_check_bpi_user();
+
     drupal_add_library('system', 'drupal.ajax');
 
     $query_form = array(
@@ -172,14 +174,16 @@ function bpi_user_list_form(array $form, array &$form_state) {
 
     $bpi = bpi_client_instance();
     $options = array('' => '');
-    $channels = $bpi->getChannelsByUser(bpi_get_current_bpi_user_id());
-    if ($channels) {
-      foreach ($channels as $channel) {
-        if (bpi_can_edit_channel($channel)) {
-          $options[$channel->getId()] = $channel->getName();
+    try {
+      $channels = $bpi->getChannelsByUser(bpi_get_current_bpi_user_id());
+      if ($channels) {
+        foreach ($channels as $channel) {
+          if (bpi_can_edit_channel($channel)) {
+            $options[$channel->getId()] = $channel->getName();
+          }
         }
       }
-    }
+    } catch (\Exception $e) {}
     if (count($options) > 1) {
       $form['bpi_actions_bottom']['channel'] = array(
         '#type' => 'select',

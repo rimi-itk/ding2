@@ -42,6 +42,8 @@ define('BPI_ALL_FACETS_KEY', 'BPI_ALL_FACETS');
 function bpi_syndicate_page_form($form, &$form_state) {
   // Check configuration have been,
   if (bpi_service_is_configured()) {
+    bpi_check_bpi_user();
+
     drupal_add_library('system', 'drupal.ajax');
 
     $query_form = array(
@@ -848,6 +850,12 @@ function bpi_build_search_facets(array &$form) {
 }
 
 function bpi_build_subscriptions(array &$form) {
+  $user = bpi_get_user();
+
+  if (!$user) {
+    return;
+  }
+
   $form['bpi_subscriptions'] = array(
     '#type' => 'container',
     '#attributes' => array(
@@ -857,7 +865,6 @@ function bpi_build_subscriptions(array &$form) {
     ),
   );
 
-  $user = bpi_get_user();
 
   $active_subscription = NULL;
   $active_filter = _bpi_get_current_filter();
@@ -875,7 +882,7 @@ function bpi_build_subscriptions(array &$form) {
     return $subscription->getTitle();
   }, $user_subscriptions);
 
-  $options = array('' => '') + array_combine($user_subscription_titles, $user_subscription_titles);
+  $options = array('' => t('(Select subscription)')) + array_combine($user_subscription_titles, $user_subscription_titles);
 
   $form['bpi_subscriptions']['subscription_id'] = array(
     '#type' => 'select',
@@ -982,7 +989,7 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
             'filter' => _bpi_get_current_filter(),
           ));
       } catch (\Exception $e) {
-        drupal_set_message(t('Cannot update subscription %id', array('%id' => $subscription_id)), 'error');
+        drupal_set_message(t('Cannot update subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
         return;
       }
 
@@ -999,7 +1006,7 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
         $bpi = bpi_client_instance();
         $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
       } catch (\Exception $e) {
-        drupal_set_message(t('Cannot delete subscription %id', array('%id' => $subscription_id)), 'error');
+        drupal_set_message(t('Cannot delete subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
         return;
       }
 
