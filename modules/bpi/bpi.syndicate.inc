@@ -1050,9 +1050,8 @@ function bpi_get_facets() {
   // Reload facets if they're not cached locally.
   $reload = !isset($_SESSION[BPI_ALL_FACETS_KEY]) || !is_array($_SESSION[BPI_ALL_FACETS_KEY]);
   if (!$reload) {
-    $query = _bpi_get_query_parameter();
     // Reload if neither text nor filter is applied.
-    $reload = !_bpi_get_current_search_phrase() || !_bpi_get_current_filter();
+    $reload = !(_bpi_get_current_search_phrase() || _bpi_get_current_filter());
   }
 
   if ($reload) {
