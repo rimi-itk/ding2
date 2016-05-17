@@ -901,18 +901,21 @@ function bpi_build_subscriptions(array &$form) {
     '#submit' => array('bpi_syndicate_subscription_form_submit'),
     '#value' => t('Apply subscription'),
     '#name' => 'subscription_apply',
+    '#attributes' => array('formmethod' => 'post'),
   );
   $form['bpi_subscriptions']['subscription_update'] = array(
     '#type' => 'submit',
     '#submit' => array('bpi_syndicate_subscription_form_submit'),
     '#value' => t('Update subscription'),
     '#name' => 'subscription_update',
+    '#attributes' => array('formmethod' => 'post'),
   );
   $form['bpi_subscriptions']['subscription_delete'] = array(
     '#type' => 'submit',
     '#submit' => array('bpi_syndicate_subscription_form_submit'),
     '#value' => t('Delete subscription'),
     '#name' => 'subscription_delete',
+    '#attributes' => array('formmethod' => 'post'),
   );
 
   if (_bpi_is_filter_applied() && !$active_subscription) {
@@ -927,6 +930,7 @@ function bpi_build_subscriptions(array &$form) {
       '#submit' => array('bpi_syndicate_subscription_form_submit'),
       '#value' => t('Create subscription'),
       '#name' => 'subscription_create',
+      '#attributes' => array('formmethod' => 'post'),
     );
   }
 }
