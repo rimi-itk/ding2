@@ -4,6 +4,11 @@
  * Handling of BPI users.
  */
 
+// This is needed to store User objects in session (see bpi_get_user())
+require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/User.php';
+require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/Agency.php';
+require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/Subscription.php';
+
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
 
@@ -739,11 +744,6 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
  * For performance reasons (i.e. not hitting the web service too much) we cache
  * the user in the session.
  *
- * Note: We handle (un)serialize'ing of the User object ourselves in order to
- * make it work with autoloading of the class. If we let Drupal handle the
- * unserialization, it is done before the class can be autoloaded which causes
- * an error.
- *
  * @param string $id
  *   The user id.
  *
@@ -758,9 +758,8 @@ function bpi_get_user($id = NULL) {
   }
   try {
     if ($is_current_user && isset($_SESSION['BPI_CURRENT_USER'])) {
-      // Hand held unserialize'ing (cf. note in doc comment).
-      $user = @unserialize($_SESSION['BPI_CURRENT_USER']);
-      if ($user) {
+      $user = $_SESSION['BPI_CURRENT_USER'];
+      if ($user instanceof Bpi\Sdk\Item\User) {
         return $user;
       }
     }
@@ -769,8 +768,7 @@ function bpi_get_user($id = NULL) {
     $user = $bpi->getUser($id);
 
     if ($is_current_user) {
-      // Hand held serialize'ing (cf. note in doc comment).
-      $_SESSION['BPI_CURRENT_USER'] = @serialize($user);
+      $_SESSION['BPI_CURRENT_USER'] = $user;
     }
 
     return $user;

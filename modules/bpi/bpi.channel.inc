@@ -387,6 +387,7 @@ function bpi_channel_subscription() {
               'channels' => array($channel->getId()),
             ),
           ));
+        bpi_flush_user();
         drupal_set_message(t('Subscription on channel %channel created', array('%channel' => $channel->getName())));
       }
       catch (\Exception $e) {
@@ -399,6 +400,7 @@ function bpi_channel_subscription() {
       try {
         $bpi = bpi_client_instance();
         $bpi->deleteSubscription($user->getId(), $title);
+        bpi_flush_user();
         drupal_set_message(t('Subscription on channel %channel deleted', array('%channel' => $channel->getName())));
       }
       catch (\Exception $e) {
@@ -437,6 +439,7 @@ function bpi_channel_subscribe($channel_id) {
           'channels' => array($channel->getId()),
         ),
       ));
+    bpi_flush_user();
     drupal_set_message(t('Channel subscription created'));
   }
   catch (\Exception $e) {
@@ -465,6 +468,7 @@ function bpi_channel_unsubscribe($channel_id) {
   try {
     $bpi = bpi_client_instance();
     $bpi->deleteSubscription($user->getId(), $title);
+    bpi_flush_user();
     drupal_set_message(t('Channel subscription deleted'));
   }
   catch (\Exception $e) {
