@@ -99,10 +99,21 @@ function bpi_menu() {
   $menu['admin/bpi/channel/user'] = array(
     'title' => 'My channels',
     'type' => MENU_LOCAL_TASK,
-    'description' => 'Show my channels.',
-    'page callback' => 'bpi_user_channel_list',
+    'description' => 'Show user\'s channels.',
+    'page callback' => 'bpi_channel_user_list',
     'access callback' => 'bpi_access',
-    'file' => 'bpi.user.inc',
+    'file' => 'bpi.channel.inc',
+    'weight' => 1,
+  );
+
+  $menu['admin/bpi/channel/subscriptions'] = array(
+    'title' => 'My channel subscriptions',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show my channel subscriptions.',
+    'page callback' => 'bpi_channel_subscription_list',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+    'weight' => 2,
   );
 
   $menu['admin/bpi/channel/add'] = array(
@@ -113,6 +124,7 @@ function bpi_menu() {
     'page arguments' => array('bpi_channel_edit_form'),
     'access callback' => 'bpi_access',
     'file' => 'bpi.channel.inc',
+    'weight' => 3,
   );
 
   $menu['admin/bpi/channel/subscription'] = array(
@@ -195,15 +207,6 @@ function bpi_menu() {
     'description' => 'Show user details.',
     'page callback' => 'bpi_user_view',
     'page arguments' => array(3),
-    'access callback' => 'bpi_access',
-    'file' => 'bpi.user.inc',
-  );
-
-  $menu['admin/bpi/user/%/channels'] = array(
-    'title' => 'User channels',
-    'description' => 'Show channels.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('bpi_user_channel_list_form', 3),
     'access callback' => 'bpi_access',
     'file' => 'bpi.user.inc',
   );

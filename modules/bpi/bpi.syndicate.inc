@@ -878,7 +878,7 @@ function bpi_build_subscriptions(array &$form) {
   $active_filter = _bpi_get_current_filter();
   $user_subscriptions = array();
   foreach ($user->getSubscriptions() as $subscription) {
-    if (!preg_match('/^#+.+#+$/', $subscription->getTitle())) {
+    if (!bpi_channel_is_channel_subscription($subscription)) {
       $user_subscriptions[] = $subscription;
       if ($subscription->getFilter() == $active_filter) {
         $active_subscription = $subscription;

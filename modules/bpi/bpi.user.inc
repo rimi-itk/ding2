@@ -431,7 +431,7 @@ function bpi_user_view($user_id) {
     return '';
   }
 
-  $items = bpi_get_channels($user->getId());
+  $items = bpi_get_channels_by_user($user->getId());
 
   return theme('bpi_user_view', [
     'user' => $user,
@@ -482,29 +482,6 @@ function bpi_user_list_form_add_editors_to_channel_submit(array $form, array &$f
   }
 
   drupal_goto('admin/bpi/channel/' . $channel_id);
-}
-
-function bpi_user_channel_list() {
-  return array(
-    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
-    'bpi_user_channel_list_form' => drupal_get_form('bpi_user_channel_list_form'),
-  );
-}
-
-/**
- * Show all channels or channels having a user as administrator or editor.
- *
- * @param array $form
- *   The form.
- * @param array $form_state
- *   The form state.
- *
- * @return array
- *   The form.
- */
-function bpi_user_channel_list_form(array $form, array &$form_state) {
-  $user_id = count($form_state['build_info']['args']) > 0 ? $form_state['build_info']['args'][0] : bpi_get_current_bpi_user_id();
-  return bpi_channel_list_form($form, $form_state, $user_id);
 }
 
 /**

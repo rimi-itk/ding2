@@ -6,6 +6,7 @@
 
 use Bpi\Sdk\Item\Channel;
 use Bpi\Sdk\Item\User;
+use Bpi\Sdk\Item\Subscription;
 
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
@@ -19,13 +20,15 @@ require_once __DIR__ . '/bpi.user.inc';
  *
  * @ingroup forms
  */
-function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL) {
+function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
   if (bpi_service_is_configured()) {
     bpi_check_bpi_user();
 
     drupal_add_library('system', 'drupal.ajax');
 
-    $items = bpi_get_channels($user_id);
+    if ($items === NULL) {
+      $items = bpi_get_channels();
+    }
 
     $total_items = $items['total_count'];
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
@@ -121,11 +124,68 @@ function bpi_channel_list_form(array $form, array &$form_state, $user_id = NULL)
   return $form;
 }
 
-
 function bpi_channel_list() {
   return array(
     'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
     'bpi_channel_list_form' => drupal_get_form('bpi_channel_list_form'),
+  );
+}
+
+/**
+ * Show all channels or channels having a user as administrator or editor.
+ *
+ * @param array $form
+ *   The form.
+ * @param array $form_state
+ *   The form state.
+ *
+ * @return array
+ *   The form.
+ */
+function bpi_channel_user_list_form(array $form, array &$form_state) {
+  $user_id = count($form_state['build_info']['args']) > 0 ? $form_state['build_info']['args'][0] : bpi_get_current_bpi_user_id();
+  $items = bpi_get_channels_by_user($user_id);
+  return bpi_channel_list_form($form, $form_state, $items);
+}
+
+function bpi_channel_user_list() {
+  return array(
+    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
+    'bpi_channel_user_list_form' => drupal_get_form('bpi_channel_user_list_form'),
+  );
+}
+
+/**
+ * Define channels page markup.
+ *
+ * @return array
+ *   Form structure.
+ *
+ * @ingroup forms
+ */
+function bpi_channel_subscription_list_form(array $form, array &$form_state) {
+  $user_id = count($form_state['build_info']['args']) > 0 ? $form_state['build_info']['args'][0] : bpi_get_current_bpi_user_id();
+  $items = array();
+  $user = bpi_get_user($user_id);
+  if ($user) {
+    $channelIds = array();
+    foreach ($user->getSubscriptions() as $subscription) {
+      if (bpi_channel_is_channel_subscription($subscription)) {
+        $filter = $subscription->getFilter();
+        if (isset($filter['channels']) && count($filter['channels']) === 1) {
+          $channelIds[] = $filter['channels'][0];
+        }
+      }
+    }
+    $items = bpi_get_channels_by_ids($channelIds);
+  }
+  return bpi_channel_list_form($form, $form_state, $items);
+}
+
+function bpi_channel_subscription_list() {
+  return array(
+    'bpi_channel_subscription_form' => drupal_get_form('bpi_channel_subscription_form'),
+    'bpi_channel_subscription_list_form' => drupal_get_form('bpi_channel_subscription_list_form'),
   );
 }
 
@@ -196,10 +256,43 @@ function bpi_channel_view($channel_id) {
     ),
   ));
 
-  return theme('bpi_channel_view', array(
+  $content = theme('bpi_channel_view', array(
     'channel' => $channel,
+    'has_new_content' => bpi_channel_has_new_content($channel),
     'nodes' => bpi_nodelist_to_array($nodes),
   ));
+
+  bpi_channel_set_channel_viewed_at($channel_id);
+
+  return $content;
+}
+
+function bpi_channel_has_new_content(Channel $channel) {
+  $node_last_added_at = $channel->getNodeLastAddedAt();
+  $channel_viewed_at = bpi_channel_get_channel_viewed_at($channel->getId());
+  return $channel_viewed_at !== NULL && $node_last_added_at !== NULL && $node_last_added_at > $channel_viewed_at;
+}
+
+function bpi_channel_set_channel_viewed_at($channel_id) {
+  global $user;
+
+  $data = isset($user->data['bpi_channel']) ? $user->data['bpi_channel'] : array();
+  $channel_data = isset($data['channel_data']) ? $data['channel_data'] : array();
+  $channel_data[$channel_id]['last_viewed_at'] = new \DateTime();
+  $data['channel_data'] = $channel_data;
+
+  user_save($user, array('data' => array('bpi_channel' => $data)));
+}
+
+function bpi_channel_get_channel_viewed_at($channel_id) {
+  global $user;
+
+  return isset(
+    $user->data['bpi_channel'],
+    $user->data['bpi_channel']['channel_data'],
+    $user->data['bpi_channel']['channel_data'][$channel_id],
+    $user->data['bpi_channel']['channel_data'][$channel_id]['last_viewed_at']) ?
+    $user->data['bpi_channel']['channel_data'][$channel_id]['last_viewed_at'] : NULL;
 }
 
 /**
@@ -489,6 +582,16 @@ function _bpi_get_channel_subscription_title($user, $channel) {
 }
 
 /**
+ * Determine is a subscription is a channel subscription
+ *
+ * @param Subscription $subscription
+ *   The subscription.
+ */
+function bpi_channel_is_channel_subscription(Subscription $subscription) {
+  return preg_match('/^#+.+#+$/', $subscription->getTitle());
+}
+
+/**
  * Get all channels or channels having a user as administrator or editor.
  *
  * @param string|null $user_id
@@ -497,16 +600,20 @@ function _bpi_get_channel_subscription_title($user, $channel) {
  * @return array|null
  *   The channels.
  */
-function bpi_get_channels($user_id = NULL) {
+function bpi_get_channels($filters = array()) {
   $page = pager_find_page();
   $query = _bpi_get_query_parameter('query');
-  $filters = array();
-  if ($user_id) {
-    $filters['userId'] = $user_id;
-  }
   $sort = _bpi_get_current_sorting();
 
   return bpi_search_channels($query, $page, $filters, $sort);
+}
+
+function bpi_get_channels_by_user($user_id) {
+  return bpi_get_channels(array('userId' => $user_id));
+}
+
+function bpi_get_channels_by_ids($ids) {
+  return bpi_get_channels(array('id' => $ids));
 }
 
 /**
@@ -574,6 +681,13 @@ function bpi_search_channels($query = '', $page = 1, $filters = array(), $sortin
     $list = [];
     foreach ($channels as $channel) {
       $list[] = $channel;
+    }
+
+    if (isset($filters['id'])) {
+      $ids = $filters['id'];
+      $list = array_values(array_filter($list, function($channel) use ($ids) {
+        return in_array($channel->getId(), $ids);
+      }));
     }
 
     if ($sorting) {
@@ -699,6 +813,10 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       'class' => array('bpi-node-last-added-at', _bpi_get_current_sorting('node_last_added_at') ? 'active' : ''),
     ),
     array(
+      'data' => t('Has new content'),
+      'class' => array('bpi-has-new-content'),
+    ),
+    array(
       'data' => bpi_get_sort_link(t('Subscribed to channel?'), 'subscribed_to_channel'),
       'class' => array('bpi-subscribed-to-channel', _bpi_get_current_sorting('subscribed_to_channel') ? 'active' : ''),
     ),
@@ -744,13 +862,17 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
                    : '<a href="#" onclick="BpiChannel.subscribe(\'' . $item->getId() . '\')">' . t('Subscribe to channel') . '</a>';
       }
 
+      $node_last_added_at = $item->getNodeLastAddedAt() ? $item->getNodeLastAddedAt()->format('Y-m-d H:i:s') : NULL;
+      $has_new_content = bpi_channel_has_new_content($item) ? t('Yes') : t('No');
+
       $row = array(
         'title' => $title,
         'description' => $description,
         'administrator' => $administrator,
         'agency' => $agency,
         'nodes' => count($item->getNodes()),
-        'node_last_added_at' => $item->getNodeLastAddedAt() ? $item->getNodeLastAddedAt()->format('Y-m-d H:i:s') : NULL,
+        'node_last_added_at' => $node_last_added_at,
+        'has_new_content' => $has_new_content,
         'subscribed_to_channel' => $subscribed_to_channel,
         'actions' => implode(' ', $actions),
       );
@@ -874,7 +996,7 @@ function bpi_channel_editor_remove_form_submit(array $form, array &$form_state) 
 function bpi_channel_node_add_form(array $form, array &$form_state) {
   list($node_id) = $form_state['build_info']['args'];
 
-  $items = bpi_get_channels(bpi_get_current_bpi_user_id());
+  $items = bpi_get_channels_by_user(bpi_get_current_bpi_user_id());
   $options = array('' => '');
   if (isset($items['channels'])) {
     foreach ($items['channels'] as $channel) {
