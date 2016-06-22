@@ -863,10 +863,12 @@ function bpi_build_subscriptions(array &$form) {
   }
 
   $form['bpi_subscriptions'] = array(
-    '#type' => 'container',
+    '#type' => 'fieldset',
+    '#title' => t('Subscriptions'),
     '#attributes' => array(
       'class' => array(
         drupal_html_class('container-inline'),
+        'bpi-subscriptions',
       ),
     ),
   );
