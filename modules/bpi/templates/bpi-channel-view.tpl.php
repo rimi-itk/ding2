@@ -44,6 +44,12 @@
     </p>
   <?php endif ?>
 
+  <?php if ($has_new_content): ?>
+    <div class="messages status">
+			<?php echo t('Channel has new content!'); ?>
+		</div>
+  <?php endif ?>
+
 	<?php echo theme('bpi_channel_node_list', array(
     'items' => $nodes,
     '#channel' => $channel,

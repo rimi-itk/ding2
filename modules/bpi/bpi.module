@@ -366,7 +366,7 @@ function bpi_theme($existing, $type, $theme, $path) {
     ),
     'bpi_channel_view' => array(
       'path' => $path . '/templates/',
-      'template' => 'channel-view',
+      'template' => 'bpi-channel-view',
     ),
     'bpi_channel_node_list' => array(
       'variables' => array('items' => array()),
@@ -378,7 +378,7 @@ function bpi_theme($existing, $type, $theme, $path) {
     ),
     'bpi_user_view' => array(
       'path' => $path . '/templates/',
-      'template' => 'user-view',
+      'template' => 'bpi-user-view',
     ),
   );
 }
