@@ -452,6 +452,9 @@ msgstr "Alle kanaler"
 msgid "My channels"
 msgstr "Mine kanaler"
 
+msgid "My channel subscriptions"
+msgstr "Mine abonnementer"
+
 msgid "Add channel"
 msgstr "Opret kanal"
 
@@ -545,53 +548,53 @@ msgstr "Opsig abonnement"
 msgid "Subscription on channel %channel deleted"
 msgstr "Abonnement på %channel opsagt"
 
+msgid "Subscriptions"
+msgstr "Gemte søgninger"
+
 msgid "(Select subscription)"
-msgstr "(Vælg abonnement)"
+msgstr "(Vælg søgning)"
 
 msgid "Apply subscription"
-msgstr "Brug abonnement"
+msgstr "Brug søgning"
 
 msgid "Update subscription"
-msgstr "Opdater abonnement"
+msgstr "Opdater søgning"
 
 msgid "Delete subscription"
-msgstr "Slet abonnement"
-
-msgid "Create subscription"
-msgstr "Opret abonnement"
+msgstr "Slet søgning"
 
 msgid "Subscription title"
-msgstr "Abonnementstitel"
+msgstr "Titel"
+
+msgid "Create subscription"
+msgstr "Opret søgning"
 
 msgid "Please specify a subscription title"
-msgstr "Angiv venligst en titel for abonnement"
+msgstr "Angiv venligst en titel"
 
 msgid "Subscription %title already exists"
-msgstr "Abonnement %title findes allerede"
+msgstr "Søgningen %title findes allerede"
 
 msgid "Subscription %title created"
-msgstr "Abonnement %title oprettet"
+msgstr "Søgning %title oprettet"
 
 msgid "Error creation subscription"
-msgstr "Fejl under oprettelse af abonnement"
-
-msgid "Subscription %title already exists"
-msgstr "Abonnement %title findes allerede"
+msgstr "Fejl under oprettelse af søgning"
 
 msgid "Subscription %id does not exists"
-msgstr "Abonnement %id findes ikke"
+msgstr "Søgning %id findes ikke"
 
 msgid "Subscription %title applied"
 msgstr ""
 
 msgid "Cannot update subscription %title"
-msgstr "Fejl under opdatering af abonnement %title"
+msgstr "Fejl under opdatering af søgning %title"
 
 msgid "Subscription %title updated"
-msgstr "Abonnement %title opdatering"
+msgstr "Søgning %title opdateret"
 
 msgid "Cannot delete subscription %title"
-msgstr "Fejl under sletning af abonnement %title"
+msgstr "Fejl under sletning af søgning %title"
 
 msgid "Subscription %title deleted"
-msgstr "Abonnement %title slettet"
+msgstr "Søgning %title slettet"
