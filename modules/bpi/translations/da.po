@@ -443,8 +443,8 @@ msgstr "Indhold må redigeres"
 msgid "I want be anonymous"
 msgstr "Jeg ønsker at være anonym"
 
-msgid "Channel"
-msgstr "Kanal"
+msgid "Channels"
+msgstr "Kanaler"
 
 msgid "All channels"
 msgstr "Alle kanaler"
@@ -585,7 +585,7 @@ msgid "Subscription %id does not exists"
 msgstr "Søgning %id findes ikke"
 
 msgid "Subscription %title applied"
-msgstr ""
+msgstr "Søgning %title aktiveret"
 
 msgid "Cannot update subscription %title"
 msgstr "Fejl under opdatering af søgning %title"
