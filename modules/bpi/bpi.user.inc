@@ -53,7 +53,7 @@ function bpi_user_list_form(array $form, array &$form_state) {
     $query_form['bpi_search']['bpi_search_query'] = array(
       '#type' => 'textfield',
       '#default_value' => _bpi_get_current_search_phrase(),
-      '#description' => t('Search in name'),
+      '#description' => t('Search in name and email'),
     );
 
     $query_form['bpi_search']['bpi_search_actions'] = array(
@@ -82,11 +82,10 @@ function bpi_user_list_form(array $form, array &$form_state) {
       );
     }
 
-    $items = bpi_get_users();
-
+    $items = bpi_user_search_get_items();
     bpi_user_build_search_facets($query_form);
 
-    $total_items = $items['total_count'];
+    $total_items = $items ? $items->total : 0;
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
     pager_default_initialize($total_items, $page_size);
 
@@ -99,7 +98,7 @@ function bpi_user_list_form(array $form, array &$form_state) {
       ),
     );
 
-    if (!empty($items['users'])) {
+    if ($items && $items->count() > 0) {
       $result_form['bpi_search_info'] = array(
         '#type' => 'container',
         '#attributes' => array(
@@ -141,9 +140,17 @@ function bpi_user_list_form(array $form, array &$form_state) {
       );
     }
 
-    $result_form['bpi_search_results'] = array_merge(bpi_build_user_table($items['users']), array(
-      '#empty' => t('No users found'),
-    ));
+    $result_form['bpi_search_results'] = array(
+      '#type' => 'item',
+      '#markup' => theme('bpi_user_list', array(
+        'items' => $items,
+        'empty' => t('No results'),
+      )),
+    );
+
+    // $result_form['bpi_search_results'] = array_merge(bpi_build_user_table($items['users']), array(
+    //   '#empty' => t('No users found'),
+    // ));
 
     $result_form['bpi_search_pager'] = array(
       '#type' => 'item',
@@ -330,19 +337,21 @@ function bpi_user_build_search_facets(array &$form) {
       );
     }
 
-    // Add logical operator.
-    $name = 'logicalOperator';
-    $id = $name;
-    $facets_form[$id] = array(
-      '#type' => 'select',
-      '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
-      '#options' => array(
-        'and' => t('All must apply'),
-        'or' => t('Any must apply'),
-      ),
-      '#default_value' => _bpi_get_query_parameter(array('filter', $name), 'and'),
-      '#weight' => -10,
-    );
+    if (count($facets) > 1) {
+      // Add logical operator.
+      $name = 'logicalOperator';
+      $id = $name;
+      $facets_form[$id] = array(
+        '#type' => 'select',
+        '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
+        '#options' => array(
+          'and' => t('All must apply'),
+          'or' => t('Any must apply'),
+        ),
+        '#default_value' => _bpi_get_query_parameter(array('filter', $name), 'and'),
+        '#weight' => -10,
+      );
+    }
 
     $filter_form['bpi_facets'] = $facets_form;
 
@@ -359,11 +368,11 @@ function bpi_user_build_search_facets(array &$form) {
       $filter_form['bpi_actions']['reset_filter'] = array(
         '#type' => 'item',
         '#markup' => l(t('Reset filters'), current_path(), array(
-          'query' => _bpi_get_current_search_query(),
-          'attributes' => array(
-            'class' => array('button'),
-          ),
-        )),
+                     'query' => _bpi_get_current_search_query(),
+                     'attributes' => array(
+                       'class' => array('button'),
+                     ),
+                   )),
       );
     }
 
@@ -384,32 +393,19 @@ function bpi_user_get_facets() {
   // Reload facets if they're not cached locally.
   $reload = !isset($_SESSION[BPI_USER_ALL_FACETS_KEY]) || !is_array($_SESSION[BPI_USER_ALL_FACETS_KEY]);
   if (!$reload) {
-    $query = _bpi_get_query_parameter();
     // Reload if neither text nor filter is applied.
-    $reload = !_bpi_get_current_search_phrase() || !_bpi_get_current_filter();
+    $reload = !(_bpi_get_current_search_phrase() || _bpi_get_current_filter());
   }
 
   if ($reload) {
-    $bpi = bpi_client_instance();
-    $users = $bpi->searchUsers(
-      array()
-    );
-
-    $agencies = array();
-    foreach ($users as $user) {
-      $agency = $user->getAgency();
-      if ($agency) {
-        $count = isset($agencies[$agency->getId()]) ? $agencies[$agency->getId()]['count'] : 0;
-        $agencies[$agency->getId()] = array(
-          'title' => $agency->getName(),
-          'count' => $count + 1,
-        );
-      }
+    $response = bpi_search_users();
+    if (!empty($response)) {
+      $facets = $response->getFacets();
+      $_SESSION[BPI_USER_ALL_FACETS_KEY] = bpi_facets_to_array($facets);
     }
-
-    $_SESSION[BPI_USER_ALL_FACETS_KEY] = array(
-      'agency_id' => $agencies,
-    );
+    else {
+      $_SESSION[BPI_USER_ALL_FACETS_KEY] = NULL;
+    }
   }
 
   return $_SESSION[BPI_USER_ALL_FACETS_KEY];
@@ -484,19 +480,19 @@ function bpi_user_list_form_add_editors_to_channel_submit(array $form, array &$f
   drupal_goto('admin/bpi/channel/' . $channel_id);
 }
 
-/**
- * Get all bpi users.
- *
- * @return array|null
- *   The users.
- */
-function bpi_get_users() {
+function bpi_user_search_get_items() {
+  if ($_SERVER['REQUEST_METHOD'] != 'GET') {
+    return NULL;
+  }
+
   $page = pager_find_page();
-  $query = _bpi_get_current_search_phrase();
-  $filters = array();
+  $phrase = _bpi_get_current_search_phrase();
+  $filters = _bpi_get_current_filter();
   $sort = _bpi_get_current_sorting();
 
-  return bpi_search_users($query, $page, $filters, $sort);
+  $response = bpi_search_users($phrase, $page, $filters, $sort);
+
+  return $response;
 }
 
 /**
@@ -520,72 +516,17 @@ function bpi_search_users($query = '', $page = 1, $filters = array(), $sorting =
     $amount = max(intval(_bpi_get_query_parameter('amount')), BPI_DEFAULT_PAGE_SIZE);
     $offset = $page * $amount;
 
-    $users = $bpi->searchUsers(
-      array()
+    $bpi_data = $bpi->searchUsers(
+      array(
+        'amount' => $amount,
+        'offset' => $offset,
+        'filter' => $filters,
+        'sort' => $sorting ? $sorting : array(),
+        'search' => $query,
+      )
     );
 
-    // Convert to array.
-    $list = [];
-    foreach ($users as $user) {
-      $list[] = $user;
-    }
-
-    if ($sorting) {
-      // @FIXME: usort is not stable (cf. http://php.net/manual/en/function.usort.php).
-      usort($list, function($c0, $c1) use ($sorting) {
-        foreach ($sorting as $key => $dir) {
-          $v0 = NULL;
-          $v1 = NULL;
-          $cmp = 0;
-          switch ($key) {
-            case 'name':
-              $v0 = $c0->getName();
-              $v1 = $c1->getName();
-              break;
-
-            case 'email':
-              $v0 = $c0->getEmail();
-              $v1 = $c1->getEmail();
-              break;
-
-            case 'agency':
-              $v0 = $c0->getAgency()->getName();
-              $v1 = $c1->getAgency()->getName();
-              break;
-          }
-
-          if (is_numeric($v0) && is_numeric($v1)) {
-            if ($v0 < $v1) {
-              $cmp = -1;
-            }
-            elseif ($v0 > $v1) {
-              $cmp = 1;
-            }
-          }
-          else {
-            $cmp = strcasecmp($v0, $v1);
-          }
-          if ($cmp != 0) {
-            return $dir == 'desc' ? -$cmp : $cmp;
-          }
-        }
-        return 0;
-      });
-    }
-
-    $result = [
-      'total_count' => count($list),
-      'users' => [],
-    ];
-
-    foreach ($list as $index => $user) {
-      if ($offset <= $index && $index < $offset + $amount) {
-        $result['users'][] = $user;
-      }
-      $index++;
-    }
-
-    return $result;
+    return $bpi_data;
   }
   catch (Exception $e) {
     watchdog_exception('bpi', $e);

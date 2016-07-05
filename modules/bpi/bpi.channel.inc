@@ -13,6 +13,11 @@ require_once __DIR__ . '/bpi.syndicate.inc';
 require_once __DIR__ . '/bpi.user.inc';
 
 /**
+ * Key for storing data in session.
+ */
+define('BPI_CHANNEL_ALL_FACETS_KEY', 'BPI_CHANNEL_ALL_FACETS');
+
+/**
  * Define channels page markup.
  *
  * @return array
@@ -27,10 +32,59 @@ function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
     drupal_add_library('system', 'drupal.ajax');
 
     if ($items === NULL) {
-      $items = bpi_get_channels();
+      $query_form = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array(
+            'bpi-query',
+          ),
+        ),
+      );
+
+      $query_form['bpi_search'] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array('bpi-search'),
+        ),
+      );
+
+      $query_form['bpi_search']['bpi_search_query'] = array(
+        '#type' => 'textfield',
+        '#default_value' => _bpi_get_current_search_phrase(),
+        '#description' => t('Search in title and description'),
+      );
+
+      $query_form['bpi_search']['bpi_search_actions'] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array(
+            drupal_html_class('container-inline'),
+          ),
+        ),
+      );
+
+      $query_form['bpi_search']['bpi_search_actions']['bpi_search_submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Search'),
+      );
+
+      if (_bpi_get_current_search_phrase()) {
+        $query_form['bpi_search']['bpi_search_actions']['bpi_search_reset'] = array(
+          '#type' => 'item',
+          '#markup' => l(t('Reset search'), current_path(), array(
+                       'query' => NULL,
+                       'attributes' => array(
+                         'class' => array('button'),
+                       ),
+                     )),
+        );
+      }
+
+      $items = bpi_channel_search_get_items();
+      bpi_channel_build_search_facets($query_form);
     }
 
-    $total_items = $items['total_count'];
+    $total_items = $items ? $items->total : 0;
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
     pager_default_initialize($total_items, $page_size);
 
@@ -43,7 +97,7 @@ function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
       ),
     );
 
-    if (!empty($items['channels'])) {
+    if ($items && $items->count() > 0) {
       $result_form['bpi_search_info'] = array(
         '#type' => 'container',
         '#attributes' => array(
@@ -88,7 +142,7 @@ function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
     $result_form['bpi_search_results'] = array(
       '#type' => 'item',
       '#markup' => theme('bpi_channel_list', array(
-        'items' => $items['channels'],
+        'items' => $items,
         'empty' => t('No results'),
       )),
     );
@@ -118,10 +172,54 @@ function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
     $form['#attributes']['class'][] = 'bpi';
     $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
     $form['#attached']['js'][] = drupal_get_path('module', 'bpi') . '/js/bpi-admin.js';
-    $form['#method'] = 'get';
+    $form['#submit'][] = 'bpi_channel_list_form_submit';
   }
 
   return $form;
+}
+
+/**
+ * Custom submit handler for syndication page form.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @see bpi_syndicate_page_form()
+ *
+ * @ingroup forms
+ */
+function bpi_channel_list_form_submit(array $form, array &$form_state) {
+  $bpi_query = array();
+  $sorting = _bpi_get_current_sorting();
+  if (!empty($sorting)) {
+    $bpi_query[BPI_QUERY_SORT_NAME] = $sorting;
+  }
+  $values = $form_state['values'];
+
+  if (isset($values['bpi_search_amount']) && intval($values['bpi_search_amount']) > 0) {
+    $bpi_query['amount'] = intval($values['bpi_search_amount']);
+  }
+
+  if (isset($values['bpi_search_query']) && trim($values['bpi_search_query'])) {
+    $bpi_query[BPI_SEARCH_PHRASE_KEY] = trim($values['bpi_search_query']);
+  }
+
+  if (isset($values['bpi_facets'])) {
+    foreach ($values['bpi_facets'] as $key => $value) {
+      $selected_values = is_array($value) ? array_keys(array_filter($value)) : $value;
+      if (!empty($selected_values)) {
+        if (!isset($bpi_query['filter'])) {
+          $bpi_query['filter'] = array();
+        }
+        $bpi_query['filter'][$key] = $selected_values;
+      }
+    }
+  }
+
+  // Redirect to search results.
+  drupal_goto('admin/bpi/channel', array('query' => _bpi_build_query($bpi_query, TRUE)));
 }
 
 function bpi_channel_list() {
@@ -600,7 +698,7 @@ function bpi_channel_is_channel_subscription(Subscription $subscription) {
  * @return array|null
  *   The channels.
  */
-function bpi_get_channels($filters = array()) {
+function bpi_get_channels_by($filters = array()) {
   $page = pager_find_page();
   $query = _bpi_get_query_parameter('query');
   $sort = _bpi_get_current_sorting();
@@ -609,11 +707,11 @@ function bpi_get_channels($filters = array()) {
 }
 
 function bpi_get_channels_by_user($user_id) {
-  return bpi_get_channels(array('userId' => $user_id));
+  return bpi_get_channels_by(array('userId' => $user_id));
 }
 
 function bpi_get_channels_by_ids($ids) {
-  return bpi_get_channels(array('id' => $ids));
+  return bpi_get_channels_by(array('id' => $ids));
 }
 
 /**
@@ -641,6 +739,21 @@ function bpi_get_channel($id) {
   return NULL;
 }
 
+function bpi_channel_search_get_items() {
+  if ($_SERVER['REQUEST_METHOD'] != 'GET') {
+    return NULL;
+  }
+
+  $page = pager_find_page();
+  $phrase = _bpi_get_current_search_phrase();
+  $filters = _bpi_get_current_filter();
+  $sort = _bpi_get_current_sorting();
+
+  $response = bpi_search_channels($phrase, $page, $filters, $sort);
+
+  return $response;
+}
+
 /**
  * Search channels.
  *
@@ -662,100 +775,17 @@ function bpi_search_channels($query = '', $page = 1, $filters = array(), $sortin
     $amount = max(intval(_bpi_get_query_parameter('amount')), BPI_DEFAULT_PAGE_SIZE);
     $offset = $page * $amount;
 
-    if (isset($filters['userId'])) {
-      $channels = $bpi->getChannelsByUser($filters['userId']);
-    }
-    else {
-      $channels = $bpi->searchChannels(
-        array(
-          // 'amount' => $amount,
-          // 'offset' => $offset,
-          // 'filter' => $filters,
-          // 'sort' => $sort ? $sort : array(),
-          'search' => $query,
-        )
-      );
-    }
+    $bpi_data = $bpi->searchChannels(
+      array(
+        'amount' => $amount,
+        'offset' => $offset,
+        'filter' => $filters,
+        'sort' => $sorting ? $sorting : array(),
+        'search' => $query,
+      )
+    );
 
-    // Convert to array.
-    $list = [];
-    foreach ($channels as $channel) {
-      $list[] = $channel;
-    }
-
-    if (isset($filters['id'])) {
-      $ids = $filters['id'];
-      $list = array_values(array_filter($list, function($channel) use ($ids) {
-        return in_array($channel->getId(), $ids);
-      }));
-    }
-
-    if ($sorting) {
-      // @FIXME: usort is not stable (cf. http://php.net/manual/en/function.usort.php).
-      usort($list, function($c0, $c1) use ($sorting) {
-        foreach ($sorting as $key => $dir) {
-          $v0 = NULL;
-          $v1 = NULL;
-          $cmp = 0;
-          switch ($key) {
-            case 'title':
-              $v0 = $c0->getName();
-              $v1 = $c1->getName();
-              break;
-
-            case 'description':
-              $v0 = $c0->getDescription();
-              $v1 = $c1->getDescription();
-              break;
-
-            case 'admin':
-              $v0 = $c0->getAdmin() ? $c0->getAdmin()->getName() : NULL;
-              $v1 = $c1->getAdmin() ? $c1->getAdmin()->getName() : NULL;
-              break;
-
-            case 'nodes':
-              $v0 = count($c0->getNodes());
-              $v1 = count($c1->getNodes());
-              break;
-
-            case 'node_last_added_at':
-              $v0 = $c0->getNodeLastAddedAt() ? $c0->getNodeLastAddedAt()->format('c') : NULL;
-              $v1 = $c1->getNodeLastAddedAt() ? $c1->getNodeLastAddedAt()->format('c') : NULL;
-              break;
-          }
-
-          if (is_numeric($v0) && is_numeric($v1)) {
-            if ($v0 < $v1) {
-              $cmp = -1;
-            }
-            elseif ($v0 > $v1) {
-              $cmp = 1;
-            }
-          }
-          else {
-            $cmp = strcasecmp($v0, $v1);
-          }
-          if ($cmp != 0) {
-            return $dir == 'desc' ? -$cmp : $cmp;
-          }
-        }
-        return 0;
-      });
-    }
-
-    $result = [
-      'total_count' => count($list),
-      'channels' => [],
-    ];
-
-    foreach ($list as $index => $channel) {
-      if ($offset <= $index && $index < $offset + $amount) {
-        $result['channels'][] = $channel;
-      }
-      $index++;
-    }
-
-    return $result;
+    return $bpi_data;
   }
   catch (Exception $e) {
     watchdog_exception('bpi', $e);
@@ -1156,4 +1186,151 @@ function bpi_can_contribute_to_channel(Channel $channel) {
     }
   }
   return FALSE;
+}
+
+
+/**
+ * Build facets form fields.
+ *
+ * @param array $form
+ *   The form.
+ */
+function bpi_channel_build_search_facets(array &$form) {
+  $facets = bpi_channel_get_facets();
+
+  if (!empty($facets)) {
+    $filter_form = array(
+      '#type' => 'fieldset',
+      '#title' => t('Filters'),
+      '#collapsible' => TRUE,
+      '#collapsed' => !_bpi_is_filter_applied(),
+      '#attributes' => array(
+        'class' => array(
+          'bpi-filters',
+        ),
+      ),
+    );
+
+    $facets_form = array(
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => array(
+        'class' => array(
+          'bpi-facets',
+        ),
+      ),
+    );
+
+    // Use chosen to render select controls?
+    $library = libraries_detect('chosen');
+    $use_chosen = !empty($library['installed']);
+
+    if ($use_chosen) {
+      foreach ($library['files']['css'] as $file => $v) {
+        $form['#attached']['css'][] = $library['library path'] . '/' . $file;
+      }
+      foreach ($library['files']['js'] as $file => $v) {
+        $form['#attached']['js'][] = $library['library path'] . '/' . $file;
+      }
+    }
+
+    foreach ($facets as $name => $terms) {
+      $id = $name;
+      $type = $use_chosen ? 'select' : 'checkboxes';
+      $multiple = TRUE;
+      $options = array();
+      foreach ($terms as $term => $item) {
+        $options[$term] = $item['title'];
+      }
+      $default_value = _bpi_get_query_parameter(array('filter', $name), array());
+
+      $facets_form[$id] = array(
+        '#type' => $type,
+        '#multiple' => $multiple,
+        '#chosen' => $multiple && $use_chosen,
+        '#size' => $multiple ? min(20, count($options)) : NULL,
+        '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
+        '#options' => $options,
+        '#default_value' => $default_value,
+        '#attributes' => array(
+          'data-placeholder' => $multiple ? t('Pick some values') : t('Pick a value'),
+          'data-no-matches' => t('Nothing matches'),
+        ),
+        '#prefix' => '<div class="bpi-facet bpi-facet-' . drupal_html_class($name) . '">',
+        '#suffix' => '</div>',
+      );
+    }
+
+    if (count($facets) > 1) {
+      // Add logical operator.
+      $name = 'logicalOperator';
+      $id = $name;
+      $facets_form[$id] = array(
+        '#type' => 'select',
+        '#title' => bpi_label_mapper($name) ? bpi_label_mapper($name) : $name,
+        '#options' => array(
+          'and' => t('All must apply'),
+          'or' => t('Any must apply'),
+        ),
+        '#default_value' => _bpi_get_query_parameter(array('filter', $name), 'and'),
+        '#weight' => -10,
+      );
+    }
+
+    $filter_form['bpi_facets'] = $facets_form;
+
+    $filter_form['bpi_actions'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array(
+          drupal_html_class('container-inline'),
+        ),
+      ),
+    );
+
+    if (_bpi_get_current_filter()) {
+      $filter_form['bpi_actions']['reset_filter'] = array(
+        '#type' => 'item',
+        '#markup' => l(t('Reset filters'), current_path(), array(
+                     'query' => _bpi_get_current_search_query(),
+                     'attributes' => array(
+                       'class' => array('button'),
+                     ),
+                   )),
+      );
+    }
+
+    $form['bpi_filter'] = $filter_form;
+  }
+}
+
+/**
+ * Get facets as an array.
+ *
+ * For performance reasons facets will only be loaded when no search or
+ * filters are applied.
+ *
+ * @return array|null
+ *   All facets.
+ */
+function bpi_channel_get_facets() {
+  // Reload facets if they're not cached locally.
+  $reload = !isset($_SESSION[BPI_CHANNEL_ALL_FACETS_KEY]) || !is_array($_SESSION[BPI_CHANNEL_ALL_FACETS_KEY]);
+  if (!$reload) {
+    // Reload if neither text nor filter is applied.
+    $reload = !(_bpi_get_current_search_phrase() || _bpi_get_current_filter());
+  }
+
+  if ($reload) {
+    $response = bpi_search_channels();
+    if (!empty($response)) {
+      $facets = $response->getFacets();
+      $_SESSION[BPI_CHANNEL_ALL_FACETS_KEY] = bpi_facets_to_array($facets);
+    }
+    else {
+      $_SESSION[BPI_CHANNEL_ALL_FACETS_KEY] = NULL;
+    }
+  }
+
+  return $_SESSION[BPI_CHANNEL_ALL_FACETS_KEY];
 }
