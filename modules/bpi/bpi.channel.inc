@@ -707,7 +707,8 @@ function bpi_get_channels_by($filters = array()) {
 }
 
 function bpi_get_channels_by_user($user_id) {
-  return bpi_get_channels_by(array('userId' => $user_id));
+  $bpi = bpi_client_instance();
+  return $bpi->getChannelsByUser($user_id);
 }
 
 function bpi_get_channels_by_ids($ids) {
