@@ -1028,8 +1028,8 @@ function bpi_channel_node_add_form(array $form, array &$form_state) {
 
   $items = bpi_get_channels_by_user(bpi_get_current_bpi_user_id());
   $options = array('' => '');
-  if (isset($items['channels'])) {
-    foreach ($items['channels'] as $channel) {
+  if ($items && $items->count() > 0) {
+    foreach ($items as $channel) {
       $options[$channel->getId()] = $channel->getName();
     }
   }

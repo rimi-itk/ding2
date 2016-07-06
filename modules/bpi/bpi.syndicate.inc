@@ -858,7 +858,13 @@ function bpi_build_search_facets(array &$form) {
 function bpi_build_subscriptions(array &$form) {
   $user = bpi_get_user();
 
-  if (!$user) {
+  if (empty($user)) {
+    return;
+  }
+
+  $subscriptions = $user->getSubscriptions();
+
+  if (empty($subscriptions)) {
     return;
   }
 
@@ -877,7 +883,7 @@ function bpi_build_subscriptions(array &$form) {
   $active_subscription = NULL;
   $active_filter = _bpi_get_current_filter();
   $user_subscriptions = array();
-  foreach ($user->getSubscriptions() as $subscription) {
+  foreach ($subscriptions as $subscription) {
     if (!bpi_channel_is_channel_subscription($subscription)) {
       $user_subscriptions[] = $subscription;
       if ($subscription->getFilter() == $active_filter) {
