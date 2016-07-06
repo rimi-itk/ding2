@@ -267,15 +267,18 @@ function bpi_channel_subscription_list_form(array $form, array &$form_state) {
   $user = bpi_get_user($user_id);
   if ($user) {
     $channelIds = array();
-    foreach ($user->getSubscriptions() as $subscription) {
-      if (bpi_channel_is_channel_subscription($subscription)) {
-        $filter = $subscription->getFilter();
-        if (isset($filter['channels']) && count($filter['channels']) === 1) {
-          $channelIds[] = $filter['channels'][0];
+    $subscriptions = $user->getSubscriptions();
+    if ($subscriptions) {
+      foreach ($subscriptions as $subscription) {
+        if (bpi_channel_is_channel_subscription($subscription)) {
+          $filter = $subscription->getFilter();
+          if (isset($filter['channels']) && count($filter['channels']) === 1) {
+            $channelIds[] = $filter['channels'][0];
+          }
         }
       }
     }
-    $items = bpi_get_channels_by_ids($channelIds);
+    $items = $channelIds ? bpi_get_channels_by_ids($channelIds) : array();
   }
   return bpi_channel_list_form($form, $form_state, $items);
 }
