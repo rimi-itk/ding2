@@ -140,17 +140,9 @@ function bpi_user_list_form(array $form, array &$form_state) {
       );
     }
 
-    $result_form['bpi_search_results'] = array(
-      '#type' => 'item',
-      '#markup' => theme('bpi_user_list', array(
-        'items' => $items,
-        'empty' => t('No results'),
-      )),
-    );
-
-    // $result_form['bpi_search_results'] = array_merge(bpi_build_user_table($items['users']), array(
-    //   '#empty' => t('No users found'),
-    // ));
+    $result_form['bpi_search_results'] = array_merge(bpi_build_user_table($items), array(
+      '#empty' => t('No users found'),
+    ));
 
     $result_form['bpi_search_pager'] = array(
       '#type' => 'item',
@@ -545,7 +537,7 @@ function bpi_search_users($query = '', $page = 1, $filters = array(), $sorting =
  * @return array
  *   The form element.
  */
-function bpi_build_user_table(array $users) {
+function bpi_build_user_table($users) {
   $header = array(
     'name' => array(
       'data' => bpi_get_sort_link(t('Name'), 'name'),
