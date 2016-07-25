@@ -423,7 +423,7 @@ function bpi_user_view($user_id) {
 
   return theme('bpi_user_view', [
     'user' => $user,
-    'channels' => $items['channels'],
+    'channels' => $items,
   ]);
 }
 
