@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/Subscription.php';
 
 // We want to reuse some helper functions.
 require_once __DIR__ . '/bpi.syndicate.inc';
+require_once __DIR__ . '/bpi.channel.inc';
 
 /**
  * Key for storing user facets in session.
@@ -143,6 +144,8 @@ function bpi_user_list_form(array $form, array &$form_state) {
     $result_form['bpi_search_results'] = array_merge(bpi_build_user_table($items), array(
       '#empty' => t('No users found'),
     ));
+    $result_form['bpi_search_results']['#prefix'] = '<div class="bpi-search-result bpi-user-list">';
+    $result_form['bpi_search_results']['#suffix'] = '</div>';
 
     $result_form['bpi_search_pager'] = array(
       '#type' => 'item',

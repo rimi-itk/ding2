@@ -143,9 +143,11 @@ function bpi_channel_list_form(array $form, array &$form_state, $items = NULL) {
       '#type' => 'item',
       '#markup' => theme('bpi_channel_list', array(
         'items' => $items,
-        'empty' => t('No results'),
+        'empty' => t('No channels found'),
       )),
     );
+    $result_form['bpi_search_results']['#prefix'] = '<div class="bpi-search-result bpi-channel-list">';
+    $result_form['bpi_search_results']['#suffix'] = '</div>';
 
     $result_form['bpi_search_pager'] = array(
       '#type' => 'item',
