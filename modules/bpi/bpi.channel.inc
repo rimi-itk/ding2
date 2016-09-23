@@ -952,11 +952,29 @@ function theme_bpi_channel_node_list(array $variables) {
 }
 
 /**
+ * Add additional actions to channel node list.
+ *
+ * @param array $actions
+ *   The list of actions.
+ * @param array $item
+ *   The current item list.
+ * @param array $variables
+ *   The variables sent in the list function.
+ */
+function bpi_channel_node_list_action_callback(array &$actions, array $item, array &$variables) {
+  if (!empty($variables['#channel'])) {
+    $actions[] = l(t('Remove node from channel'),
+                 'admin/bpi/channel/' . $variables['#channel']->getId() . '/node/remove/' . $item['bpi_id']
+    );
+  }
+}
+
+/**
  * Implements hook_preprocess_HOOK().
  */
 function bpi_preprocess_bpi_channel_node_list(array &$variables) {
   drupal_add_css(drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css');
-
+  $variables['actions_callback'] = 'bpi_channel_node_list_action_callback';
   bpi_preprocess_bpi_search_results($variables);
 }
 

@@ -472,6 +472,9 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
           'admin/bpi/syndicate/' . $item['bpi_id']
         ),
       );
+      if (isset($variables['actions_callback']) && is_callable($variables['actions_callback'])) {
+        $variables['actions_callback']($actions, $item, $variables);
+      }
       $rows[$i]['actions'] = implode(' ', $actions);
     }
   }
