@@ -963,9 +963,12 @@ function theme_bpi_channel_node_list(array $variables) {
  */
 function bpi_channel_node_list_action_callback(array &$actions, array $item, array &$variables) {
   if (!empty($variables['#channel'])) {
-    $actions[] = l(t('Remove node from channel'),
-                 'admin/bpi/channel/' . $variables['#channel']->getId() . '/node/remove/' . $item['bpi_id']
-    );
+    $channel = $variables['#channel'];
+    if (bpi_can_contribute_to_channel($channel)) {
+      $actions[] = l(t('Remove node from channel'),
+                   'admin/bpi/channel/' . $channel->getId() . '/node/remove/' . $item['bpi_id']
+      );
+    }
   }
 }
 
