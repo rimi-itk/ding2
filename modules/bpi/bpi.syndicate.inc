@@ -881,8 +881,10 @@ function bpi_build_subscriptions(array &$form) {
   }
 
   $subscriptions = $user->getSubscriptions();
+  // Subscriptions that's currently applied if any.
+  $active_subscription = NULL;
 
-  if (empty($subscriptions)) {
+  if (empty($subscriptions) && !_bpi_is_filter_applied()) {
     return;
   }
 
@@ -897,52 +899,54 @@ function bpi_build_subscriptions(array &$form) {
     ),
   );
 
-
-  $active_subscription = NULL;
-  $active_filter = _bpi_get_current_filter();
-  $user_subscriptions = array();
-  foreach ($subscriptions as $subscription) {
-    if (!bpi_channel_is_channel_subscription($subscription)) {
-      $user_subscriptions[] = $subscription;
-      if ($subscription->getFilter() == $active_filter) {
-        $active_subscription = $subscription;
+  // Show users subscriptions if any.
+  if (!empty($subscriptions)) {
+    $active_filter = _bpi_get_current_filter();
+    $user_subscriptions = array();
+    foreach ($subscriptions as $subscription) {
+      if (!bpi_channel_is_channel_subscription($subscription)) {
+        $user_subscriptions[] = $subscription;
+        if ($subscription->getFilter() == $active_filter) {
+          $active_subscription = $subscription;
+        }
       }
     }
+
+    $user_subscription_titles = array_map(function ($subscription) {
+      return $subscription->getTitle();
+    }, $user_subscriptions);
+
+    $options = array('' => t('(Select subscription)')) + array_combine($user_subscription_titles,
+        $user_subscription_titles);
+
+    $form['bpi_subscriptions']['subscription_id'] = array(
+      '#type' => 'select',
+      '#options' => $options,
+      '#default_value' => $active_subscription ? $active_subscription->getTitle() : null,
+    );
+
+    $form['bpi_subscriptions']['subscription_apply'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Apply subscription'),
+      '#name' => 'subscription_apply',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+    $form['bpi_subscriptions']['subscription_update'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Update subscription'),
+      '#name' => 'subscription_update',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+    $form['bpi_subscriptions']['subscription_delete'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Delete subscription'),
+      '#name' => 'subscription_delete',
+      '#attributes' => array('formmethod' => 'post'),
+    );
   }
-
-  $user_subscription_titles = array_map(function($subscription) {
-    return $subscription->getTitle();
-  }, $user_subscriptions);
-
-  $options = array('' => t('(Select subscription)')) + array_combine($user_subscription_titles, $user_subscription_titles);
-
-  $form['bpi_subscriptions']['subscription_id'] = array(
-    '#type' => 'select',
-    '#options' => $options,
-    '#default_value' => $active_subscription ? $active_subscription->getTitle() : NULL,
-  );
-
-  $form['bpi_subscriptions']['subscription_apply'] = array(
-    '#type' => 'submit',
-    '#submit' => array('bpi_syndicate_subscription_form_submit'),
-    '#value' => t('Apply subscription'),
-    '#name' => 'subscription_apply',
-    '#attributes' => array('formmethod' => 'post'),
-  );
-  $form['bpi_subscriptions']['subscription_update'] = array(
-    '#type' => 'submit',
-    '#submit' => array('bpi_syndicate_subscription_form_submit'),
-    '#value' => t('Update subscription'),
-    '#name' => 'subscription_update',
-    '#attributes' => array('formmethod' => 'post'),
-  );
-  $form['bpi_subscriptions']['subscription_delete'] = array(
-    '#type' => 'submit',
-    '#submit' => array('bpi_syndicate_subscription_form_submit'),
-    '#value' => t('Delete subscription'),
-    '#name' => 'subscription_delete',
-    '#attributes' => array('formmethod' => 'post'),
-  );
 
   if (_bpi_is_filter_applied() && !$active_subscription) {
     $form['bpi_subscriptions']['subscription_title'] = array(
