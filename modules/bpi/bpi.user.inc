@@ -424,10 +424,15 @@ function bpi_user_view($user_id) {
 
   $items = bpi_get_channels_by_user($user->getId());
 
-  return theme('bpi_user_view', [
-    'user' => $user,
-    'channels' => $items,
-  ]);
+  // Channel (un)subscribe form.
+  $content = render(drupal_get_form('bpi_channel_subscription_form'));
+  // Actual view content.
+  $content .= theme('bpi_user_view', [
+                'user' => $user,
+                'channels' => $items,
+              ]);
+
+  return $content;
 }
 
 
