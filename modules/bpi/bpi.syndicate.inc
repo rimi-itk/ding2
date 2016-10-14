@@ -160,6 +160,7 @@ function bpi_syndicate_page_form($form, &$form_state) {
       '#markup' => theme('bpi_search_results', array(
         'items' => $items,
         'empty' => t('No results'),
+        'actions_callback' => bpi_get_user() ? 'bpi_syndicate_subscribe_to_channel_action_callback' : NULL,
       )),
     );
 
@@ -183,6 +184,20 @@ function bpi_syndicate_page_form($form, &$form_state) {
   }
 
   return $form;
+}
+
+/**
+ * Add additional actions to channel node list.
+ *
+ * @param array $actions
+ *   The list of actions.
+ * @param array $item
+ *   The current item list.
+ * @param array $variables
+ *   The variables sent in the list function.
+ */
+function bpi_syndicate_subscribe_to_channel_action_callback(array &$actions, array $item, array &$variables) {
+  $actions[] = l(t('Add node to channel'), 'admin/bpi/channel/node/add/' . $item['bpi_id']);
 }
 
 /**
