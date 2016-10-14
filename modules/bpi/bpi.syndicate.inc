@@ -6,6 +6,8 @@
 
 require_once __DIR__ . '/bpi.channel.inc';
 
+use Bpi\Sdk\Facets;
+
 /**
  * Cache ID for agency_id => agency_name mapping.
  */
@@ -40,7 +42,7 @@ define('BPI_ALL_FACETS_KEY', 'BPI_ALL_FACETS');
  * @ingroup forms
  */
 function bpi_syndicate_page_form($form, &$form_state) {
-  // Check configuration have been,
+  // Check BPI configuration has been set.
   if (bpi_service_is_configured()) {
     bpi_check_bpi_user();
 
@@ -922,7 +924,7 @@ function bpi_build_subscriptions(array &$form) {
     $form['bpi_subscriptions']['subscription_id'] = array(
       '#type' => 'select',
       '#options' => $options,
-      '#default_value' => $active_subscription ? $active_subscription->getTitle() : null,
+      '#default_value' => $active_subscription ? $active_subscription->getTitle() : NULL,
     );
 
     $form['bpi_subscriptions']['subscription_apply'] = array(
@@ -1004,10 +1006,11 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
       $bpi = bpi_client_instance();
       try {
         $bpi->createSubscription($user->getId(), array(
-            'title' => $title,
-            'filter' => _bpi_get_current_filter(),
-          ));
-      } catch (\Exception $e) {
+          'title' => $title,
+          'filter' => _bpi_get_current_filter(),
+        ));
+      }
+      catch (\Exception $e) {
         watchdog_exception('bpi', $e);
         drupal_set_message(t('Error creating subscription'), 'error');
         return;
@@ -1039,10 +1042,11 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
         $bpi = bpi_client_instance();
         $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
         $bpi->createSubscription($user->getId(), array(
-            'title' => $selected_subscription->getTitle(),
-            'filter' => _bpi_get_current_filter(),
-          ));
-      } catch (\Exception $e) {
+          'title' => $selected_subscription->getTitle(),
+          'filter' => _bpi_get_current_filter(),
+        ));
+      }
+      catch (\Exception $e) {
         drupal_set_message(t('Cannot update subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
         return;
       }
@@ -1060,7 +1064,8 @@ function bpi_syndicate_subscription_form_submit(array $form, array &$form_state)
       try {
         $bpi = bpi_client_instance();
         $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
-      } catch (\Exception $e) {
+      }
+      catch (\Exception $e) {
         drupal_set_message(t('Cannot delete subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
         return;
       }
@@ -1115,7 +1120,7 @@ function bpi_get_facets() {
  *     count => item count
  *   ]
  */
-function bpi_facets_to_array(\Bpi\Sdk\Facets $facets) {
+function bpi_facets_to_array(Facets $facets) {
   $data = array();
   foreach ($facets->getFacets() as $facet) {
     $data[$facet->getFacetName()] = array();

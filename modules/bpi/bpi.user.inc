@@ -4,6 +4,8 @@
  * Handling of BPI users.
  */
 
+use Bpi\Sdk\Item\User;
+
 // This is needed to store User objects in session (see bpi_get_user())
 require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/User.php';
 require_once __DIR__ . '/lib/bpi-client/Bpi/Sdk/Item/Agency.php';
@@ -190,7 +192,9 @@ function bpi_user_list_form(array $form, array &$form_state) {
           }
         }
       }
-    } catch (\Exception $e) {}
+    }
+    catch (\Exception $e) {
+    }
     if (count($options) > 1) {
       $form['bpi_actions_bottom']['channel'] = array(
         '#type' => 'select',
@@ -363,11 +367,11 @@ function bpi_user_build_search_facets(array &$form) {
       $filter_form['bpi_actions']['reset_filter'] = array(
         '#type' => 'item',
         '#markup' => l(t('Reset filters'), current_path(), array(
-                     'query' => _bpi_get_current_search_query(),
-                     'attributes' => array(
-                       'class' => array('button'),
-                     ),
-                   )),
+          'query' => _bpi_get_current_search_query(),
+          'attributes' => array(
+            'class' => array('button'),
+          ),
+        )),
       );
     }
 
@@ -427,14 +431,13 @@ function bpi_user_view($user_id) {
   // Channel (un)subscribe form.
   $content = render(drupal_get_form('bpi_channel_subscription_form'));
   // Actual view content.
-  $content .= theme('bpi_user_view', [
-                'user' => $user,
-                'channels' => $items,
-              ]);
+  $content .= theme('bpi_user_view', array(
+    'user' => $user,
+    'channels' => $items,
+  ));
 
   return $content;
 }
-
 
 /**
  * Validation handler for bpi_user_list_form_add_editors_to_channel_validate.
@@ -480,6 +483,12 @@ function bpi_user_list_form_add_editors_to_channel_submit(array $form, array &$f
   drupal_goto('admin/bpi/channel/' . $channel_id);
 }
 
+/**
+ * Search users in BPI web service.
+ *
+ * @return array
+ *   A list of users.
+ */
 function bpi_user_search_get_items() {
   if ($_SERVER['REQUEST_METHOD'] != 'GET') {
     return NULL;
@@ -654,8 +663,6 @@ function bpi_preprocess_bpi_user_list(array &$variables) {
   unset($variables['items']);
 }
 
-
-
 /**
  * Get a user by id.
  *
@@ -677,7 +684,7 @@ function bpi_get_user($id = NULL) {
   try {
     if ($is_current_user && isset($_SESSION['BPI_CURRENT_USER'])) {
       $user = $_SESSION['BPI_CURRENT_USER'];
-      if ($user instanceof Bpi\Sdk\Item\User) {
+      if ($user instanceof User) {
         return $user;
       }
     }
