@@ -321,6 +321,7 @@ function bpi_search_get_items() {
     // Transform \Bpi\Sdk\Document properties items into array.
     $bpi_nodes[] = array(
       'bpi_id' => isset($current_item['id']) ? $current_item['id'] : '',
+      'type' => isset($current_item['type']) ? $current_item['type'] : '',
       'title' => isset($current_item['title']) ? $current_item['title'] : '',
       'date' => isset($current_item['pushed']) ? $current_item['pushed'] : '',
       'teaser' => isset($current_item['teaser']) ? $current_item['teaser'] : '',
@@ -366,6 +367,10 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
 
   $table_head = array(
     array(
+      'data' => bpi_get_sort_link(t('Type'), 'type'),
+      'class' => array('bpi-type', _bpi_get_current_sorting('type') ? 'active' : ''),
+    ),
+    array(
       'data' => bpi_get_sort_link(t('Title'), 'title'),
       'class' => array('bpi-title', _bpi_get_current_sorting('title') ? 'active' : ''),
     ),
@@ -397,6 +402,7 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
 
   $rows = array();
   foreach ($items as $i => $item) {
+    $rows[$i]['type'] = $item['type'];
     $rows[$i]['title'] = sprintf(
       '<b>%s</b><br />%s',
       $item['title'],
