@@ -209,3 +209,23 @@ function bpi_update_7004(&$sandbox) {
   $sandbox['current'] += $limit;
   $sandbox['#finished'] = min($sandbox['current'], $sandbox['max']) / $sandbox['max'];
 }
+
+/**
+ * Convert single BPI mapping to list of mappings.
+ */
+function bpi_update_7005(&$sandbox) {
+  $bpi_mappings = array(
+    array(
+      'bpi_node_type' => 'ding_news',
+      'bpi_content_type' => variable_get('bpi_content_type', ''),
+      'bpi_field_mapping' => array(
+        'bpi_field_title' => variable_get('bpi_field_title', ''),
+        'bpi_field_teaser' => variable_get('bpi_field_teaser', ''),
+        'bpi_field_body' => variable_get('bpi_field_body', ''),
+        'bpi_field_materials' => variable_get('bpi_field_materials', ''),
+      ),
+    ),
+  );
+
+  variable_set('bpi_mappings', $bpi_mappings);
+}

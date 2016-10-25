@@ -828,3 +828,34 @@ function bpi_libraries_info() {
 
   return $libraries;
 }
+
+/**
+ * Get all BPI mappings.
+ *
+ * @return array
+ *   All defined mappings.
+ */
+function bpi_get_mappings() {
+  return variable_get('bpi_mappings', array());
+}
+
+/**
+ * Get mapping of a BPI node type.
+ *
+ * @param string $bpi_type
+ *   The BPI node type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping($bpi_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if ($mapping['bpi_node_type'] === $bpi_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
