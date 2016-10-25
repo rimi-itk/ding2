@@ -448,7 +448,7 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
         array('attributes' => array('class' => 'use-ajax'))
       ),
       l(t('Syndicate'),
-        'admin/bpi/syndicate/' . $item['bpi_id']
+        'admin/bpi/syndicate/' . $item['type'] . '/' . $item['bpi_id']
       ),
     );
     $rows[$i]['actions'] = implode(' ', $actions);
@@ -688,13 +688,15 @@ function bpi_available_map() {
  * @param int $bpi_id
  *   Content ID, as as stored in BPI service.
  */
-function bpi_syndicate_action($bpi_id) {
-  $bpi_ctype = variable_get('bpi_content_type', '');
+function bpi_syndicate_action($bpi_type, $bpi_id) {
+  $mapping = bpi_get_mapping($bpi_type);
 
-  if (!empty($bpi_ctype)) {
-    drupal_goto(str_replace('_', '-', 'node/add/' . $bpi_ctype), array('query' => array('bpi_id' => $bpi_id)));
+  if (!empty($mapping) && !empty($mapping['bpi_content_type'])) {
+    $content_type = $mapping['bpi_content_type'];
+    drupal_goto(str_replace('_', '-', 'node/add/' . $content_type), array('query' => array('bpi_type' => $bpi_type, 'bpi_id' => $bpi_id)));
   }
   else {
+    drupal_set_message(t('Cannot find BPI mapping for @type', array('@type' => $bpi_type)), 'warning');
     drupal_goto('admin/bpi');
   }
 }
