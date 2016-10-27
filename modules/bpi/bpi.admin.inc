@@ -160,7 +160,6 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
       '#type' => 'fieldset',
       '#title' => t('Mapping (@bpi_type)', array('@bpi_type' => isset($default_values['bpi_node_type']) ? $default_values['bpi_node_type'] : '–')),
       '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
 
       'bpi_node_type' => array(
         '#type' => 'select',
@@ -182,6 +181,10 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
         .'<br/>'. t('If you change the content type, you have to save the form before editing the field mapping.'),
         '#options' => $node_types,
         '#default_value' => isset($default_values['bpi_content_type']) ? $default_values['bpi_content_type'] : NULL,
+        '#ajax' => array(
+          'callback' => 'bpi_admin_content_mapping_form_update_content_type_fields',
+          'wrapper' => 'bpi-wrapper',
+        ),
       ),
 
       'bpi_field_mapping' => array(
@@ -247,9 +250,27 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
     );
   }
 
+  $form['bpi_syndication'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Syndication settings'),
+  );
+
+  $form['bpi_syndication']['bpi_syndicate_tags'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Syndicate tags'),
+    '#description' => t('Include tags when syndicating from BPI?'),
+    '#default_value' => variable_get('bpi_syndicate_tags', FALSE),
+  );
   $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
 
   return system_settings_form($form);
+}
+
+/**
+ * Callback for setting Drupal content type field selectors.
+ */
+function bpi_admin_content_mapping_form_update_content_type_fields($form, $form_state) {
+  return $form['bpi_mappings'];
 }
 
 /**

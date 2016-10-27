@@ -213,7 +213,7 @@ function bpi_update_7004(&$sandbox) {
 /**
  * Convert single BPI mapping to list of mappings.
  */
-function bpi_update_7005(&$sandbox) {
+function bpi_update_7006(&$sandbox) {
   $bpi_mappings = array(
     array(
       'bpi_node_type' => 'ding_news',
