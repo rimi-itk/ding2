@@ -692,8 +692,16 @@ function bpi_syndicate_action($bpi_type, $bpi_id) {
   $mapping = bpi_get_mapping($bpi_type);
 
   if (!empty($mapping) && !empty($mapping['bpi_content_type'])) {
-    $content_type = $mapping['bpi_content_type'];
-    drupal_goto(str_replace('_', '-', 'node/add/' . $content_type), array('query' => array('bpi_type' => $bpi_type, 'bpi_id' => $bpi_id)));
+    foreach (module_implements('bpi_syndicate_action_url') as $module) {
+      $result = module_invoke($module, 'bpi_syndicate_action_url', $bpi_type, $bpi_id, $mapping);
+      if (!empty($result) && count($result) > 0) {
+        $path = $result[0];
+        $options = count($result) > 1 ? $result[1] : array();
+        drupal_goto($path, $options);
+      }
+    }
+    drupal_set_message(t('Cannot syndicate @type', array('@type' => $bpi_type)), 'warning');
+    drupal_goto('admin/bpi');
   }
   else {
     drupal_set_message(t('Cannot find BPI mapping for @type', array('@type' => $bpi_type)), 'warning');

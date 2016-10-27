@@ -342,6 +342,17 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
       drupal_add_css(drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css', 'file');
       $_SESSION['bpi']['assets'] = $bpi_assets;
     }
+
+    // Call hooks to handle specific bpi content type.
+    $bpi_assets = array(
+      'image' => array(
+        array(
+          '@managed_file' => file_load(1),
+        ),
+      ),
+    );
+
+    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $bpi_assets);
   }
 
   // Add BPI fields.
@@ -863,6 +874,17 @@ function bpi_get_mapping($bpi_type) {
     if ($mapping['bpi_node_type'] === $bpi_type) {
       return $mapping;
     }
+  }
+
+  return NULL;
+}
+
+/**
+ * Implements bpi_syndicate_action_url().
+ */
+function bpi_bpi_syndicate_action_url($bpi_type, $bpi_id, array $mapping) {
+  if ($bpi_type === 'ding_news' || $bpi_type === 'article') {
+    return array(str_replace('_', '-', 'node/add/' . $mapping['bpi_content_type']), array('query' => array('bpi_type' => $bpi_type, 'bpi_id' => $bpi_id)));
   }
 
   return NULL;
