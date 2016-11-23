@@ -227,5 +227,5 @@ function bpi_update_7006(&$sandbox) {
     ),
   );
 
-  variable_set('bpi_mappings', $bpi_mappings);
+  bpi_set_mappings($bpi_mappings);
 }

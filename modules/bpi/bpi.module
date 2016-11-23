@@ -849,6 +849,16 @@ function bpi_libraries_info() {
 }
 
 /**
+ * Set BPI mappings.
+ *
+ * @param array $bpi_mappings
+ *   The mappings.
+ */
+function bpi_set_mappings(array $bpi_mappings) {
+  variable_set('bpi_mappings', $bpi_mappings);
+}
+
+/**
  * Get all BPI mappings.
  *
  * @return array

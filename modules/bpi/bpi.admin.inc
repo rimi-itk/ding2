@@ -130,7 +130,7 @@ function bpi_admin_settings_form_validate(&$form, &$form_state) {
  *
  * @ingroup forms
  */
-function bpi_admin_content_mapping_form($form, &$form_state) {
+function bpi_admin_content_mapping_form(array $form, array &$form_state) {
   $bpi_mappings = bpi_get_mappings();
 
   $form['#tree'] = TRUE;
@@ -145,7 +145,10 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
   $node_types_names = array_keys($node_types);
 
   if (empty($form_state['num_mappings'])) {
-    $form_state['num_mappings'] = max(1, count($bpi_mappings));
+    $form_state['num_mappings'] = max(0, count($bpi_mappings));
+  }
+  if (!isset($form_state['deleted_mappings'])) {
+    $form_state['deleted_mappings'] = array();
   }
   for ($i = 0; $i < $form_state['num_mappings']; $i++) {
     $default_values = isset($bpi_mappings[$i]) ? $bpi_mappings[$i] : array();
@@ -156,12 +159,20 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
     }
     $field_instances = array('' => '') + bpi_get_field_instances($selected_node_type);
 
-    $form['bpi_mappings'][$i] = array(
+    $mapping = array(
       '#type' => 'fieldset',
       '#title' => t('Mapping (@bpi_type)', array('@bpi_type' => isset($default_values['bpi_node_type']) ? $default_values['bpi_node_type'] : '–')),
       '#collapsible' => TRUE,
-
-      'bpi_node_type' => array(
+    );
+    if (isset($form_state['deleted_mappings'][$i])) {
+      $mapping += array(
+        'message' => array(
+          '#markup' => 'Save to confirm',
+        ),
+      );
+    } else {
+      $mapping += array(
+        'bpi_node_type' => array(
         '#type' => 'select',
         '#title' => t('BPI node type'),
         '#description' => t('Enter the BPI node type, e.g. ding_news, campaign, carousel.'),
@@ -228,8 +239,27 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
         ),
       ),
     );
+
+    if (isset($default_values['bpi_node_type'])) {
+      $mapping += array(
+        'remove_mapping' => array(
+          '#type' => 'submit',
+          '#value' => t('Remove mapping of @bpi_type', array('@bpi_type' => isset($default_values['bpi_node_type']) ? $default_values['bpi_node_type'] : '–')),
+          '#name' => 'remove_mapping_' . $i,
+          '#submit' => array('bpi_admin_content_mapping_form_add_mapping_remove_one'),
+          '#ajax' => array(
+            'callback' => 'bpi_admin_content_mapping_form_add_mapping_callback',
+            'wrapper' => 'bpi-wrapper',
+          ),
+        ),
+      );
+    }
+    }
+
+    $form['bpi_mappings'][$i] = $mapping;
   }
-  $form['bpi_mappings']['add_mapping'] = array(
+
+  $form['add_mapping'] = array(
     '#type' => 'submit',
     '#value' => t('Add mapping'),
     '#submit' => array('bpi_admin_content_mapping_form_add_mapping_add_one'),
@@ -238,17 +268,6 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
       'wrapper' => 'bpi-wrapper',
     ),
   );
-  if ($form_state['num_mappings'] > 1) {
-    $form['bpi_mappings']['remove_mapping'] = array(
-      '#type' => 'submit',
-      '#value' => t('Remove mapping'),
-      '#submit' => array('bpi_admin_content_mapping_form_add_mapping_remove_one'),
-      '#ajax' => array(
-        'callback' => 'bpi_admin_content_mapping_form_add_mapping_callback',
-        'wrapper' => 'bpi-wrapper',
-      ),
-    );
-  }
 
   $form['bpi_syndication'] = array(
     '#type' => 'fieldset',
@@ -262,8 +281,13 @@ function bpi_admin_content_mapping_form($form, &$form_state) {
     '#default_value' => variable_get('bpi_syndicate_tags', FALSE),
   );
   $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
+  $form['#submit'][] = 'bpi_admin_content_mapping_form_submit';
 
   return system_settings_form($form);
+}
+
+function bpi_admin_content_mapping_form_submit(array $form, array &$form_state) {
+  $form_state['values']['bpi_mappings'] = isset($form_state['values']['bpi_mappings']) ? array_values($form_state['values']['bpi_mappings']) : array();
 }
 
 /**
@@ -296,10 +320,16 @@ function bpi_admin_content_mapping_form_add_mapping_add_one($form, &$form_state)
  * Decrements the counter and causes a form rebuild.
  */
 function bpi_admin_content_mapping_form_add_mapping_remove_one($form, &$form_state) {
-  if ($form_state['num_mappings'] > 1) {
-    $form_state['num_mappings']--;
+  if (isset($form_state['triggering_element']['#name'])
+    && preg_match('/^remove_mapping_(?<index>[0-9]+)$/', $form_state['triggering_element']['#name'], $matches)) {
+    $index = $matches['index'];
+    $bpi_mappings = bpi_get_mappings();
+    if (isset($bpi_mappings[$index])) {
+      $form_state['deleted_mappings'][$index] = $index;
+      $form_state['rebuild'] = TRUE;
+      drupal_set_message(t('Save to remove mapping of @bpi_type', array('@bpi_type' => $bpi_mappings[$index]['bpi_node_type'])), 'warning');
+    }
   }
-  $form_state['rebuild'] = TRUE;
 }
 
 /**
