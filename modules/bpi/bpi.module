@@ -7,6 +7,7 @@
  */
 
 include_once drupal_get_path('module', 'bpi') . '/bpi.push.inc';
+include_once drupal_get_path('module', 'bpi') . '/bpi.bpi.inc';
 
 /**
  * URL search query key.
@@ -359,6 +360,7 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
   if ($form_id == $bpi_ctype . '_node_form') {
     // Don't show BPI fields if user doesn't have access to the workflow tab.
     $node = $form['#node'];
+    header('Content-type: text/plain'); echo var_export(null, true); die(__FILE__.':'.__LINE__.':'.__METHOD__);
     if (!workflow_tab_access("node", $node)) {
       unset($form['field_bpi_workflow']);
       return;
@@ -890,11 +892,21 @@ function bpi_get_mapping($bpi_type) {
 }
 
 /**
- * Implements bpi_syndicate_action_url().
+ * Get mapping of a BPI node type by Drupal content type.
+ *
+ * @param string $content_type
+ *   The Drupal content type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
  */
-function bpi_bpi_syndicate_action_url($bpi_type, $bpi_id, array $mapping) {
-  if ($bpi_type === 'ding_news' || $bpi_type === 'article') {
-    return array(str_replace('_', '-', 'node/add/' . $mapping['bpi_content_type']), array('query' => array('bpi_type' => $bpi_type, 'bpi_id' => $bpi_id)));
+function bpi_get_mapping_by_content_type($content_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if (isset($mapping['bpi_content_type']) && $mapping['bpi_content_type'] === $content_type) {
+      return $mapping;
+    }
   }
 
   return NULL;

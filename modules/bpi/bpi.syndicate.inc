@@ -447,10 +447,16 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
         'admin/bpi/preview/nojs/' . $item['bpi_id'],
         array('attributes' => array('class' => 'use-ajax'))
       ),
-      l(t('Syndicate'),
-        'admin/bpi/syndicate/' . $item['type'] . '/' . $item['bpi_id']
-      ),
+      // l(t('Syndicate'),
+      //   'admin/bpi/syndicate/' . $item['type'] . '/' . $item['bpi_id']
+      // ),
     );
+
+    $syndicate_url = bpi_get_syndicate_url($item['type'], $item['bpi_id']);
+    if ($syndicate_url) {
+      $actions[] = '<a href="' . check_plain($syndicate_url) . '">' . t('Syndicate') . '</a>';
+    }
+
     $rows[$i]['actions'] = implode(' ', $actions);
   }
 
@@ -692,12 +698,12 @@ function bpi_syndicate_action($bpi_type, $bpi_id) {
   $mapping = bpi_get_mapping($bpi_type);
 
   if (!empty($mapping) && !empty($mapping['bpi_content_type'])) {
-    foreach (module_implements('bpi_syndicate_action_url') as $module) {
-      $result = module_invoke($module, 'bpi_syndicate_action_url', $bpi_type, $bpi_id, $mapping);
-      if (!empty($result) && count($result) > 0) {
-        $path = $result[0];
-        $options = count($result) > 1 ? $result[1] : array();
-        drupal_goto($path, $options);
+    $hook = 'bpi_syndicate_action_url';
+    foreach (module_implements($hook) as $module) {
+      $url = module_invoke($module, $hook, $bpi_type, $bpi_id, $mapping);
+      if (!empty($url)) {
+        header('Location: ' . $url, TRUE, 301);
+        drupal_exit($url);
       }
     }
     drupal_set_message(t('Cannot syndicate @type', array('@type' => $bpi_type)), 'warning');
@@ -707,6 +713,21 @@ function bpi_syndicate_action($bpi_type, $bpi_id) {
     drupal_set_message(t('Cannot find BPI mapping for @type', array('@type' => $bpi_type)), 'warning');
     drupal_goto('admin/bpi');
   }
+}
+
+function bpi_get_syndicate_url($bpi_type, $bpi_id) {
+  $mapping = bpi_get_mapping($bpi_type);
+  if (!empty($mapping)) {
+    $hook = 'bpi_syndicate_action_url';
+    foreach (module_implements($hook) as $module) {
+      $url = module_invoke($module, $hook, $bpi_type, $bpi_id, $mapping);
+      if (!empty($url)) {
+        return $url;
+      }
+    }
+  }
+
+  return NULL;
 }
 
 /**

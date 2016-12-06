@@ -216,7 +216,7 @@ function bpi_update_7004(&$sandbox) {
 function bpi_update_7006(&$sandbox) {
   $bpi_mappings = array(
     array(
-      'bpi_node_type' => 'ding_news',
+      'bpi_node_type' => 'article',
       'bpi_content_type' => variable_get('bpi_content_type', ''),
       'bpi_field_mapping' => array(
         'bpi_field_title' => variable_get('bpi_field_title', ''),

@@ -120,7 +120,7 @@ function bpi_http_push_action_form($nid) {
  * @todo Add a hook allowing changing the values before they are sent to BPI.
  * @todo Split this function into smaller parts (ex: images, texts).
  */
-function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $authorship = FALSE, $editable = 1, $with_refs = FALSE) {
+function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $authorship = FALSE, $editable = 1, $with_refs = FALSE, array $mapping = array()) {
   $bpi_content = array();
 
   $bpi_content['agency_id'] = variable_get('bpi_agency_id', '');
@@ -156,29 +156,31 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
   if ($with_refs) {
     // Function field_get_items returns data with 2 different structure, depending from stage when it was called.
     $items = field_get_items('node', $node, variable_get('bpi_field_materials', ''));
-    foreach ($items as $item) {
-      // First case, we have completly saved node, when it returns ding_object_id.
-      if (!empty($item['ting_object_id'])) {
-        $id = $item['ting_object_id'];
-        // Filter out id's with "katalog" PID, as they only makes sens on
-        // current site.
-        if (!preg_match('/katalog/', $id)) {
-          $materials_drupal[] = $id;
+    if (is_array($items)) {
+      foreach ($items as $item) {
+        // First case, we have completly saved node, when it returns ding_object_id.
+        if (!empty($item['ting_object_id'])) {
+          $id = $item['ting_object_id'];
+          // Filter out id's with "katalog" PID, as they only makes sens on
+          // current site.
+          if (!preg_match('/katalog/', $id)) {
+            $materials_drupal[] = $id;
+          }
         }
-      }
-      // Second case, we used "Save and push" button and node wasn't completly saved
-      // In this case, we have object of class Relation.
-      elseif (isset($item['value']->endpoints)) {
-        $endpoints = $item['value']->endpoints;
-        $data = array_filter($endpoints[LANGUAGE_NONE], function ($i) {
-          return $i['entity_type'] == 'ting_object';
-        });
-        if (!empty($data)) {
-          $ting_data = current($data);
-          $ting_object = entity_load_single('ting_object', $ting_data['entity_id']);
-          if ($ting_object) {
-            if (!preg_match('/katalog/', $ting_object->ding_entity_id)) {
-              $materials_drupal[] = $ting_object->ding_entity_id;
+        // Second case, we used "Save and push" button and node wasn't completly saved
+        // In this case, we have object of class Relation.
+        elseif (isset($item['value']->endpoints)) {
+          $endpoints = $item['value']->endpoints;
+          $data = array_filter($endpoints[LANGUAGE_NONE], function ($i) {
+            return $i['entity_type'] == 'ting_object';
+          });
+          if (!empty($data)) {
+            $ting_data = current($data);
+            $ting_object = entity_load_single('ting_object', $ting_data['entity_id']);
+            if ($ting_object) {
+              if (!preg_match('/katalog/', $ting_object->ding_entity_id)) {
+                $materials_drupal[] = $ting_object->ding_entity_id;
+              }
             }
           }
         }
@@ -204,13 +206,16 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
   $dt = new DateTime();
   $dt->setTimestamp($node->changed);
   $bpi_content['creation'] = $dt->format(DateTime::W3C);
-  $bpi_content['type'] = $node->type;
+  $bpi_content['type'] = $mapping['bpi_node_type'];
   $bpi_content['category'] = $category;
   $bpi_content['audience'] = $audience;
   $bpi_content['related_materials'] = $materials_drupal;
   $bpi_content['editable'] = (int) $editable;
   $bpi_content['authorship'] = ($authorship) ? FALSE : TRUE;
-  $bpi_content['images'] = array();
+  $bpi_content['assets'] = array();
+  $bpi_content['tags'] = '';
+  $bpi_content['url'] = '';
+  $bpi_content['data'] = json_encode(array());
 
   if ($with_images) {
     $image_fields = bpi_fetch_image_fields($node->type);
@@ -241,7 +246,11 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
     );
   }
 
-  drupal_alter('bpi_convert_to_bpi', $bpi_content, $node);
+  drupal_alter('bpi_convert_to_bpi', $bpi_content, $node, $mapping);
+
+  if (is_array($bpi_content['data'])) {
+    $bpi_content['data'] = json_encode($bpi_content['data']);
+  }
 
   return $bpi_content;
 }

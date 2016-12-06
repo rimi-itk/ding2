@@ -5,6 +5,7 @@
  */
 
 include_once 'ding_campaign.features.inc';
+include_once 'ding_campaign.bpi.inc';
 
 /**
  * Implements hook_menu().
@@ -719,83 +720,4 @@ function _ding_campaign_rule_by_type($node_type) {
   }
 
   return $type;
-}
-
-/**
- * Implements bpi_syndicate_action_url().
- */
-function ding_campaign_bpi_syndicate_action_url($bpi_type, $bpi_id, array $mapping) {
-  if ($bpi_type === 'ding_campaign') {
-    return array(str_replace('_', '-', 'node/add/' . $mapping['bpi_content_type']), array('query' => array('bpi_type' => $bpi_type, 'bpi_id' => $bpi_id)));
-  }
-
-  return NULL;
-}
-
-/**
- * Implements hook_bpi_convert_to_bpi_alter().
- */
-function ding_campaign_bpi_convert_to_bpi_alter(&$bpi_content, $node) {
-  //if ($node->type === 'ding_campaign')
-  {
-    $bpi_content['type'] = 'ding_campaign';
-    $bpi_content['data'] = array(
-      'campaign_type' => 'image',
-    );
-    $bpi_content['assets'] = array(
-      array(
-        'path' => 'https://placekitten.com/400/300',
-        'alt' => '',
-        'title' => '',
-        'type' => 'image',
-        'name' => '400x300',
-        'extension' => 'jpg',
-      ),
-    );
-  }
-}
-
-/**
- * Implements hook_bpi_syndicate_form().
- */
-function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $assets) {
-  $current_language = $form['language']['#value'];
-  $data = $bpi_content['data'];
-  $type = isset($data['campaign_type']) ? $data['campaign_type'] : 'plain';
-
-  if (!in_array($type, array('full',  'image', 'plain'))) {
-    return;
-  }
-
-  $form['field_camp_settings'][$current_language]['#default_value'] = $type;
-  $form['field_camp_link'][$current_language][0]['value']['#default_value'] = isset($bpi_content['url']) ? $bpi_content['url'] : NULL;
-
-  switch ($type) {
-    case 'full':
-      break;
-    case 'image':
-      ding_campaign_place_images($form, $current_language, $assets);
-      break;
-    case 'plain':
-      break;
-  }
-}
-
-function ding_campaign_place_images(array &$form, $current_language, $assets) {
-  foreach ($assets as $type => $images) {
-    if ($type === 'image') {
-      $field = &$form['field_camp_image'][$current_language];
-      $cardinality = isset($field['#cardinality']) ? $field['#cardinality'] : 1;
-      // The cardinality of a field with an unlimited number of values is -1.
-      if ($cardinality < 0) {
-        $cardinality = PHP_INT_MAX;
-      }
-      $number_of_images_to_place = min(count($images), $cardinality);
-      for ($i = 0; $i < $number_of_images_to_place; $i++) {
-        if (is_object($images[$i]['@managed_file'])) {
-          $field[$i]['#default_value'] = array('fid' => $images[$i]['@managed_file']->fid);
-        }
-      }
-    }
-  }
 }
