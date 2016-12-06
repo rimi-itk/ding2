@@ -11,6 +11,8 @@
  * be rewritten and cleaned up.
  */
 
+include_once 'ding_user_consent.features.inc';
+
 define('DING_USER_CONSENT_LOAN_HISTORY_STORE', 'loan_history_store');
 
 /**
@@ -161,7 +163,7 @@ function ding_user_consent_form_profile2_form_alter(&$form, &$form_state) {
   if (!variable_get('user_consent_activate')) {
     return;
   }
-  
+
   $account = user_load($form['profile_provider_alma']['#entity']->uid);
   if (ding_user_is_provider_user($account)) {
     $profile_type = ding_user_get_provider_profile_type();
@@ -377,6 +379,10 @@ function theme_ding_user_consent_set($variables) {
   foreach ($consents as $id => $values) {
     $title = check_plain(variable_get('ding_user_consent_' . $id . '_title', $values['title']));
     $description = variable_get('ding_user_consent_' . $id . '_description', $values['description']);
+  }
+
+  if (isset($description['value'])) {
+    $description = $description['value'];
   }
 
   return '<div class="ding-user-consent-set">' . '<div class="description">' . $description . '</div>' . '<div class="choice">' . ctools_ajax_text_button(t('No thanks, not interested'), 'ding/consent/nojs/' . $variables['id'] . '/0', t('No'), "transparent-button negative") . ctools_ajax_text_button(t('Yes please, the library can store my previous loans'), 'ding/consent/nojs/' . $variables['id'] . '/1', $title, "transparent-button positive") . '</div>' . '</div>';
