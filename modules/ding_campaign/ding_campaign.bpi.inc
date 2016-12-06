@@ -102,7 +102,7 @@ function ding_campaign_bpi_convert_to_bpi_alter(&$bpi_content, $node, $mapping) 
 /**
  * Implements hook_bpi_syndicate_form().
  */
-function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $assets) {
+function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $syndicated_images) {
   $current_language = $form['language']['#value'];
   $data = @json_decode($bpi_content['data'], TRUE);
   $type = isset($data['type']) ? $data['type'] : 'plain';
@@ -118,14 +118,17 @@ function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $assets) {
     case 'full':
       break;
     case 'image':
-      ding_campaign_bpi_place_images($form, $current_language, $assets);
+      ding_campaign_bpi_place_images($form, $current_language, $syndicated_images);
       break;
     case 'plain':
       break;
   }
 }
 
-function ding_campaign_bpi_place_images(array &$form, $current_language, $assets) {
+function ding_campaign_bpi_place_images(array &$form, $current_language, $syndicated_images) {
+  if ($syndicated_images) {
+    header('Content-type: text/plain'); echo var_export($syndicated_images, true); die(__FILE__.':'.__LINE__.':'.__METHOD__);
+  }
   foreach ($assets as $type => $images) {
     if ($type === 'image') {
       $field = &$form['field_camp_image'][$current_language];

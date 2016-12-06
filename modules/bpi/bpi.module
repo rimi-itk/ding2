@@ -368,7 +368,7 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
     }
 
     // Call hooks to handle specific bpi content type.
-    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $bpi_assets);
+    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $syndicated_images);
   }
 
   // Add BPI fields.
