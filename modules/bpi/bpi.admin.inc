@@ -261,6 +261,22 @@ function bpi_admin_content_mapping_form(array $form, array &$form_state) {
     ),
   );
 
+  $form['bpi_mapper']['bpi_field_tags'] = array(
+    '#type' => 'select',
+    '#title' => t('BPI tags'),
+    '#description' => t('Field used to get tags from.'),
+    '#options' => $field_instances,
+    '#default_value' => variable_get('bpi_field_tags', ''),
+  );
+
+  $form['bpi_mapper']['bpi_field_materials'] = array(
+    '#type' => 'select',
+    '#title' => t('BPI materials'),
+    '#description' => t('Field used to get reference to the T!NG data well.'),
+    '#options' => $field_instances,
+    '#default_value' => variable_get('bpi_field_materials', ''),
+  );
+
   $form['bpi_syndication'] = array(
     '#type' => 'fieldset',
     '#title' => t('Syndication settings'),
@@ -272,6 +288,7 @@ function bpi_admin_content_mapping_form(array $form, array &$form_state) {
     '#description' => t('Include tags when syndicating from BPI?'),
     '#default_value' => variable_get('bpi_syndicate_tags', FALSE),
   );
+
   $form['#attached']['css'][] = drupal_get_path('module', 'bpi') . '/css/bpi-admin.styles.css';
   $form['#submit'][] = 'bpi_admin_content_mapping_form_submit';
 
@@ -367,6 +384,8 @@ function bpi_get_field_instances($node_type) {
     'text_textfield',
     'text_textarea',
     'text_textarea_with_summary',
+    'taxonomy_term_reference',
+    'taxonomy_autocomplete',
     'ting_reference_simple',
     'ting_reference_advanced',
   );
