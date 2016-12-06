@@ -345,14 +345,6 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
     }
 
     // Call hooks to handle specific bpi content type.
-    $bpi_assets = array(
-      'image' => array(
-        array(
-          '@managed_file' => file_load(1),
-        ),
-      ),
-    );
-
     drupal_alter('bpi_syndicate_form', $form, $bpi_content, $bpi_assets);
   }
 
@@ -360,7 +352,6 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
   if ($form_id == $bpi_ctype . '_node_form') {
     // Don't show BPI fields if user doesn't have access to the workflow tab.
     $node = $form['#node'];
-    header('Content-type: text/plain'); echo var_export(null, true); die(__FILE__.':'.__LINE__.':'.__METHOD__);
     if (!workflow_tab_access("node", $node)) {
       unset($form['field_bpi_workflow']);
       return;

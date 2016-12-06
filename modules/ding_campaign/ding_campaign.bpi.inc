@@ -105,10 +105,10 @@ function ding_campaign_bpi_convert_to_bpi_alter(&$bpi_content, $node, $mapping) 
 function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $assets) {
   $current_language = $form['language']['#value'];
   $data = @json_decode($bpi_content['data'], TRUE);
-  $type = isset($data['campaign_type']) ? $data['campaign_type'] : 'plain';
+  $type = isset($data['type']) ? $data['type'] : 'plain';
 
   if (!in_array($type, array('full', 'image', 'plain'))) {
-    return;
+    $type = 'plain';
   }
 
   $form['field_camp_settings'][$current_language]['#default_value'] = $type;
