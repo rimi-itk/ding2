@@ -13060,7 +13060,7 @@ msgstr ""
 
 #: /admin/bpi?amount=10&text=l%C3%A6s%20h%C3%B8jt%20for%20dit%20barn&render=overlay
 msgid "Showing item @from of @total"
-msgstr ""
+msgstr "Viser resultat @from af @total"
 
 #: /admin/bpi?render=overlay
 msgid "External sources"
@@ -66595,4 +66595,3 @@ msgstr "Ting openlist er ikke konfigureret. Konfigurér venligst modulet @here f
 #: ding_list/ding_list.module:346 ting_openlist/ting_openlist.admin.inc:134
 msgid "Books I've read"
 msgstr "Bøger jeg har læst"
-
