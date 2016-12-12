@@ -259,6 +259,21 @@ function ddbasic_preprocess_views_view_unformatted(&$vars) {
 }
 
 /**
+ * Implements hook_preprocess_views_view_field().
+ */
+function ddbasic_preprocess_views_view_field(&$vars) {
+  $field = $vars['field'];
+
+  if (isset($field->field_info) && $field->field_info['field_name'] == 'field_ding_event_price') {
+    $ding_event_price = intval($vars['output']);
+    // Show "Free" text if ding_event_price is empty or zero.
+    if (empty($ding_event_price)) {
+      $vars['output'] = t('Free');
+    }
+  }
+}
+
+/**
  * Implements hook_preprocess_user_picture().
  *
  * Override or insert variables into template user_picture.tpl.php
@@ -281,15 +296,6 @@ function ddbasic_preprocess_user_picture(&$variables) {
  * Override or insert variables into the node templates.
  */
 function ddbasic_preprocess_node(&$variables, $hook) {
-  // Opening hours on library list. but not on the search page.
-  $path = drupal_get_path_alias();
-  if (!(strpos($path, 'search', 0) === 0)) {
-    $hooks = theme_get_registry(FALSE);
-    if (isset($hooks['opening_hours_week']) && $variables['type'] == 'ding_library') {
-      $variables['opening_hours'] = theme('opening_hours_week', array('node' => $variables['node']));
-    }
-  }
-
   // Add ddbasic_byline to variables.
   $variables['ddbasic_byline'] = t('By: ');
 
@@ -330,6 +336,14 @@ function ddbasic_preprocess_node(&$variables, $hook) {
       ),
     ));
     $variables['ddbasic_event_time'] = $event_time_ra[0]['#markup'];
+
+    // Show "Free" text if ding_event_price is empty or zero. Unfortunately we
+    // can't use the field template for this, since it's not called when the
+    // price field is empty. This means we also need to handle this en the views
+    // field preprocess.
+    if (empty($variables['content']['field_ding_event_price']['#items'][0]['value'])) {
+      $variables['content']['field_ding_event_price'][0]['#markup'] = t('Free');
+    }
   }
 
   // Add tpl suggestions for node view modes.
@@ -391,6 +405,25 @@ function ddbasic_preprocess_node(&$variables, $hook) {
             'html' => FALSE,
           ),
           '#prefix' => '<span class="eresource-link">',
+          '#surfix' => '</span>',
+          '#weight' => 6,
+        );
+
+        $variables['content']['group_right_col_search']['more_link'] = $more_link;
+        break;
+
+      case 'ding_page':
+        $more_link = array(
+          '#theme' => 'link',
+          '#text' => t('Read more'),
+          '#path' => 'node/' . $variables['nid'],
+          '#options' => array(
+            'attributes' => array(
+              'title' => $variables['title'],
+            ),
+            'html' => FALSE,
+          ),
+          '#prefix' => '<span class="page-link">',
           '#surfix' => '</span>',
           '#weight' => 6,
         );

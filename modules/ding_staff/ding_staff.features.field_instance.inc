@@ -166,12 +166,9 @@ function ding_staff_field_default_field_instances() {
       ),
       'default' => array(
         'label' => 'hidden',
-        'module' => 'ding_base',
-        'settings' => array(
-          'body_snippet_length' => 100,
-        ),
-        'type' => 'body_snippet',
-        'weight' => 0,
+        'settings' => array(),
+        'type' => 'hidden',
+        'weight' => 4,
       ),
       'token' => array(
         'label' => 'hidden',
@@ -411,12 +408,9 @@ function ding_staff_field_default_field_instances() {
       ),
       'default' => array(
         'label' => 'hidden',
-        'module' => 'ding_base',
-        'settings' => array(
-          'body_snippet_length' => 100,
-        ),
-        'type' => 'body_snippet',
-        'weight' => 1,
+        'settings' => array(),
+        'type' => 'hidden',
+        'weight' => 3,
       ),
       'token' => array(
         'label' => 'hidden',
