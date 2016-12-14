@@ -4,6 +4,10 @@
  * Syndication logic here.
  */
 
+require_once __DIR__ . '/bpi.channel.inc';
+
+use Bpi\Sdk\Facets;
+
 /**
  * Cache ID for agency_id => agency_name mapping.
  */
@@ -38,8 +42,10 @@ define('BPI_ALL_FACETS_KEY', 'BPI_ALL_FACETS');
  * @ingroup forms
  */
 function bpi_syndicate_page_form($form, &$form_state) {
-  // Check configuration have been,
+  // Check BPI configuration has been set.
   if (bpi_service_is_configured()) {
+    bpi_check_bpi_user();
+
     drupal_add_library('system', 'drupal.ajax');
 
     $query_form = array(
@@ -92,8 +98,9 @@ function bpi_syndicate_page_form($form, &$form_state) {
 
     // Must be called before building facets ui.
     $items = bpi_search_get_items();
-
     bpi_build_search_facets($query_form);
+
+    bpi_build_subscriptions($query_form);
 
     $total_items = isset($items[0]['total_count']) ? $items[0]['total_count'] : 0;
     $page_size = _bpi_get_query_parameter('amount', BPI_DEFAULT_PAGE_SIZE);
@@ -155,6 +162,7 @@ function bpi_syndicate_page_form($form, &$form_state) {
       '#markup' => theme('bpi_search_results', array(
         'items' => $items,
         'empty' => t('No results'),
+        'actions_callback' => bpi_get_user() ? 'bpi_syndicate_subscribe_to_channel_action_callback' : NULL,
       )),
     );
 
@@ -178,6 +186,20 @@ function bpi_syndicate_page_form($form, &$form_state) {
   }
 
   return $form;
+}
+
+/**
+ * Add additional actions to channel node list.
+ *
+ * @param array $actions
+ *   The list of actions.
+ * @param array $item
+ *   The current item list.
+ * @param array $variables
+ *   The variables sent in the list function.
+ */
+function bpi_syndicate_subscribe_to_channel_action_callback(array &$actions, array $item, array &$variables) {
+  $actions[] = l(t('Add node to channel'), 'admin/bpi/channel/node/add/' . $item['bpi_id']);
 }
 
 /**
@@ -296,8 +318,6 @@ function bpi_search_get_items() {
 
   $response = bpi_search_content($phrase, $page, $filters, $sort);
 
-  $bpi_nodes = array();
-
   // Get agency_id=>agency cache.
   $agency_cache = array();
   $cache = cache_get(BPI_AGENCY_CACHE);
@@ -305,7 +325,40 @@ function bpi_search_get_items() {
     $agency_cache = $cache->data;
   }
 
-  foreach ($response as $item) {
+  $bpi_nodes = bpi_nodelist_to_array($response);
+
+  // Save changes in agency cache.
+  if (empty($cache) || (!empty($cache) && $agency_cache != $cache->data)) {
+    cache_set(BPI_AGENCY_CACHE, $agency_cache);
+  }
+
+  return $bpi_nodes;
+}
+
+/**
+ * Convert a BPI nodelist into more simple array structure.
+ *
+ * @param \Bpi\Sdk\NodeList $node_list
+ *   The node list.
+ *
+ * @return array|null
+ *   Array of bpi fetched items, in structure:
+ *   - bpi_id: bpi identifier
+ *   - title: item title
+ *   - date: item creation date in the BPI system
+ *   - teaser: content teaser
+ *   - body: content body
+ *   - author: content author
+ *   - category: content category
+ *   - agency: content agency
+ *   - audience: content audience
+ *   - total_count: overall amount of items in the result
+ *   - assets: array of links representing the images content
+ */
+function bpi_nodelist_to_array($node_list) {
+  $bpi_nodes = array();
+
+  foreach ($node_list as $item) {
     /* @var $item \Bpi\Sdk\Item\Node */
     $current_item = $item->getProperties();
     $assets = $item->getAssets();
@@ -331,16 +384,11 @@ function bpi_search_get_items() {
       'agency' => $agency,
       'agency_id' => $agency_id,
       'audience' => isset($current_item['audience']) ? $current_item['audience'] : '',
-      'total_count' => isset($response->total) ? $response->total : 0,
+      'total_count' => isset($node_list->total) ? $node_list->total : 0,
       'assets' => (count($assets) > 0) ? $assets : array(),
       'editable' => !empty($current_item['editable']),
       'syndications' => isset($current_item['syndications']) ? $current_item['syndications'] : NULL,
     );
-  }
-
-  // Save changes in agency cache.
-  if (empty($cache) || (!empty($cache) && $agency_cache != $cache->data)) {
-    cache_set(BPI_AGENCY_CACHE, $agency_cache);
   }
 
   return $bpi_nodes;
@@ -395,11 +443,6 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
   $variables['sticky'] = TRUE;
   $variables['rows'] = array();
 
-  // If no data, do not process anything.
-  if (empty($items)) {
-    return;
-  }
-
   $rows = array();
   foreach ($items as $i => $item) {
     $rows[$i]['type'] = $item['type'];
@@ -447,9 +490,6 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
         'admin/bpi/preview/nojs/' . $item['bpi_id'],
         array('attributes' => array('class' => 'use-ajax'))
       ),
-      // l(t('Syndicate'),
-      //   'admin/bpi/syndicate/' . $item['type'] . '/' . $item['bpi_id']
-      // ),
     );
 
     $syndicate_url = bpi_get_syndicate_url($item['type'], $item['bpi_id']);
@@ -457,6 +497,9 @@ function bpi_preprocess_bpi_search_results(array &$variables) {
       $actions[] = '<a href="' . check_plain($syndicate_url) . '">' . t('Syndicate') . '</a>';
     }
 
+    if (isset($variables['actions_callback']) && is_callable($variables['actions_callback'])) {
+      $variables['actions_callback']($actions, $item, $variables);
+    }
     $rows[$i]['actions'] = implode(' ', $actions);
   }
 
@@ -859,6 +902,213 @@ function bpi_build_search_facets(array &$form) {
 }
 
 /**
+ * Build list of and actions for user's subscriptions.
+ *
+ * @param array $form
+ *   The form.
+ */
+function bpi_build_subscriptions(array &$form) {
+  $user = bpi_get_user();
+
+  if (empty($user)) {
+    return;
+  }
+
+  $subscriptions = $user->getSubscriptions();
+  // Subscriptions that's currently applied if any.
+  $active_subscription = NULL;
+
+  if (empty($subscriptions) && !_bpi_is_filter_applied()) {
+    return;
+  }
+
+  $form['bpi_subscriptions'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Subscriptions'),
+    '#attributes' => array(
+      'class' => array(
+        drupal_html_class('container-inline'),
+        'bpi-subscriptions',
+      ),
+    ),
+  );
+
+  // Show users subscriptions if any.
+  if (!empty($subscriptions)) {
+    $active_filter = _bpi_get_current_filter();
+    $user_subscriptions = array();
+    foreach ($subscriptions as $subscription) {
+      if (!bpi_channel_is_channel_subscription($subscription)) {
+        $user_subscriptions[] = $subscription;
+        if ($subscription->getFilter() == $active_filter) {
+          $active_subscription = $subscription;
+        }
+      }
+    }
+
+    $user_subscription_titles = array_map(function ($subscription) {
+      return $subscription->getTitle();
+    }, $user_subscriptions);
+
+    $options = array('' => t('(Select subscription)')) + array_combine($user_subscription_titles,
+        $user_subscription_titles);
+
+    $form['bpi_subscriptions']['subscription_id'] = array(
+      '#type' => 'select',
+      '#options' => $options,
+      '#default_value' => $active_subscription ? $active_subscription->getTitle() : NULL,
+    );
+
+    $form['bpi_subscriptions']['subscription_apply'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Apply subscription'),
+      '#name' => 'subscription_apply',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+    $form['bpi_subscriptions']['subscription_update'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Update subscription'),
+      '#name' => 'subscription_update',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+    $form['bpi_subscriptions']['subscription_delete'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Delete subscription'),
+      '#name' => 'subscription_delete',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+  }
+
+  if (_bpi_is_filter_applied() && !$active_subscription) {
+    $form['bpi_subscriptions']['subscription_title'] = array(
+      '#type' => 'textfield',
+      '#attributes' => array(
+        'placeholder' => t('Subscription title'),
+      ),
+    );
+    $form['bpi_subscriptions']['subscription_create'] = array(
+      '#type' => 'submit',
+      '#submit' => array('bpi_syndicate_subscription_form_submit'),
+      '#value' => t('Create subscription'),
+      '#name' => 'subscription_create',
+      '#attributes' => array('formmethod' => 'post'),
+    );
+  }
+}
+
+/**
+ * Submit handler for subscriptions.
+ *
+ * @param array $form
+ *   Form structure.
+ * @param array $form_state
+ *   Form state values.
+ *
+ * @see bpi_build_subscriptions()
+ */
+function bpi_syndicate_subscription_form_submit(array $form, array &$form_state) {
+  $action = $form_state['triggering_element']['#name'];
+  $user = bpi_get_user();
+
+  $subscription_id = $form_state['values']['subscription_id'];
+  $subscriptions = array_filter($user->getSubscriptions(), function($subscription) use ($subscription_id) {
+    return $subscription->getTitle() == $subscription_id;
+  });
+  $selected_subscription = count($subscriptions) > 0 ? array_shift($subscriptions) : NULL;
+
+  switch ($action) {
+    case 'subscription_create':
+      $title = trim($form_state['values']['subscription_title']);
+      if (empty($title)) {
+        drupal_set_message(t('Please specify a subscription title'), 'error');
+        return;
+      }
+
+      // Subscriptions must have unique names (for each user).
+      if (array_filter($user->getSubscriptions(), function($subscription) use ($title) {
+        return $subscription->getTitle() == $title;
+      })) {
+        drupal_set_message(t('Subscription %title already exists', array('%title' => $title)), 'error');
+        return;
+      }
+
+      $bpi = bpi_client_instance();
+      try {
+        $bpi->createSubscription($user->getId(), array(
+          'title' => $title,
+          'filter' => _bpi_get_current_filter(),
+        ));
+      }
+      catch (\Exception $e) {
+        watchdog_exception('bpi', $e);
+        drupal_set_message(t('Error creating subscription'), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title created', array('%title' => $title)));
+      bpi_flush_user();
+
+      break;
+
+    case 'subscription_apply':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title applied', array('%title' => $selected_subscription->getTitle())));
+      drupal_goto('admin/bpi', array('query' => array('filter' => $selected_subscription->getFilter())));
+
+      break;
+
+    case 'subscription_update':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
+        $bpi->createSubscription($user->getId(), array(
+          'title' => $selected_subscription->getTitle(),
+          'filter' => _bpi_get_current_filter(),
+        ));
+      }
+      catch (\Exception $e) {
+        drupal_set_message(t('Cannot update subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title updated', array('%title' => $selected_subscription->getTitle())));
+      bpi_flush_user();
+      break;
+
+    case 'subscription_delete':
+      if (!$selected_subscription) {
+        drupal_set_message(t('Subscription %id does not exists', array('%id' => $subscription_id)), 'error');
+        return;
+      }
+
+      try {
+        $bpi = bpi_client_instance();
+        $bpi->deleteSubscription($user->getId(), $selected_subscription->getTitle());
+      }
+      catch (\Exception $e) {
+        drupal_set_message(t('Cannot delete subscription %title', array('%id' => $selected_subscription->getTitle())), 'error');
+        return;
+      }
+
+      drupal_set_message(t('Subscription %title deleted', array('%title' => $selected_subscription->getTitle())));
+      bpi_flush_user();
+      break;
+  }
+}
+
+/**
  * Get facets as an array.
  *
  * For performance reasons facets will only be loaded when no search or
@@ -871,9 +1121,8 @@ function bpi_get_facets() {
   // Reload facets if they're not cached locally.
   $reload = !isset($_SESSION[BPI_ALL_FACETS_KEY]) || !is_array($_SESSION[BPI_ALL_FACETS_KEY]);
   if (!$reload) {
-    $query = _bpi_get_query_parameter();
     // Reload if neither text nor filter is applied.
-    $reload = !_bpi_get_current_search_phrase() || !_bpi_get_current_filter();
+    $reload = !(_bpi_get_current_search_phrase() || _bpi_get_current_filter());
   }
 
   if ($reload) {
@@ -903,7 +1152,7 @@ function bpi_get_facets() {
  *     count => item count
  *   ]
  */
-function bpi_facets_to_array(\Bpi\Sdk\Facets $facets) {
+function bpi_facets_to_array(Facets $facets) {
   $data = array();
   foreach ($facets->getFacets() as $facet) {
     $data[$facet->getFacetName()] = array();
