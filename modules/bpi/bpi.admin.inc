@@ -261,22 +261,6 @@ function bpi_admin_content_mapping_form(array $form, array &$form_state) {
     ),
   );
 
-  $form['bpi_mapper']['bpi_field_tags'] = array(
-    '#type' => 'select',
-    '#title' => t('BPI tags'),
-    '#description' => t('Field used to get tags from.'),
-    '#options' => $field_instances,
-    '#default_value' => variable_get('bpi_field_tags', ''),
-  );
-
-  $form['bpi_mapper']['bpi_field_materials'] = array(
-    '#type' => 'select',
-    '#title' => t('BPI materials'),
-    '#description' => t('Field used to get reference to the T!NG data well.'),
-    '#options' => $field_instances,
-    '#default_value' => variable_get('bpi_field_materials', ''),
-  );
-
   $form['bpi_syndication'] = array(
     '#type' => 'fieldset',
     '#title' => t('Syndication settings'),
@@ -308,6 +292,7 @@ function bpi_admin_get_field_mapping_form($bpi_type, $content_type, array $field
 }
 
 function bpi_admin_content_mapping_form_submit(array $form, array &$form_state) {
+  // Reindex bpi_mappings array.
   $form_state['values']['bpi_mappings'] = isset($form_state['values']['bpi_mappings']) ? array_values($form_state['values']['bpi_mappings']) : array();
 }
 

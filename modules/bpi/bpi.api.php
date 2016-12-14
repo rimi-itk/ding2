@@ -42,5 +42,19 @@ function hook_bpi_convert_to_bpi_alter(array &$bpi_content, $node, array $mappin
 }
 
 /**
+ * Get bpi image type for an image field.
+ *
+ * @param string $image_field_name
+ *   The image field name.
+ * @param object $node
+ *   The node.
+ *
+ * @return string|NULL
+ *   The image type.
+ */
+function hook_bpi_get_image_type($image_field_name, $node) {
+}
+
+/**
  * @} End of "addtogroup hooks".
  */

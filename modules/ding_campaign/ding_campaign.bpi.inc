@@ -36,42 +36,34 @@ function ding_campaign_bpi_get_field_mapping_form($bpi_type, $content_type, arra
         '#title' => t('BPI title'),
         '#description' => t('Titles are automatically assigned.'),
         '#options' => array('title' => t('Title')),
-        '#default_value' => isset($field_mapping['bpi_field_title']) ? $field_mapping['bpi_field_title'] : NULL,
+        '#value' => 'title',
         '#disabled' => TRUE,
       ),
 
-      // 'bpi_field_teaser' => array(
-      //   '#type' => 'select',
-      //   '#title' => t('BPI teaser'),
-      //   '#description' => t('The field to extract the teaser from. If the content type have a body summary, assign it to the body field.'),
-      //   '#options' => $field_options,
-      //   '#default_value' => isset($field_mapping['bpi_field_teaser']) ? $field_mapping['bpi_field_teaser'] : NULL,
-      // ),
+      'bpi_field_teaser' => array(
+        '#type' => 'select',
+        '#title' => t('BPI teaser'),
+        '#description' => t('The field to extract the teaser from. If the content type have a body summary, assign it to the body field.'),
+        '#options' => $field_options,
+        '#default_value' => isset($field_mapping['bpi_field_teaser']) ? $field_mapping['bpi_field_teaser'] : NULL,
+      ),
 
       'bpi_field_body' => array(
         '#type' => 'select',
         '#title' => t('BPI body'),
-        '#description' => t('Field to extract the main cotenten from (body field).'),
+        '#description' => t('Field to extract the main content from (body field).'),
         '#options' => $field_options,
         '#default_value' => isset($field_mapping['bpi_field_body']) ? $field_mapping['bpi_field_body'] : NULL,
       ),
 
-      'bpi_field_tags' => array(
+      'bpi_field_url' => array(
         '#type' => 'select',
-        '#title' => t('BPI tags'),
-        '#description' => t(''),
+        '#title' => t('BPI url'),
+        '#description' => t('Field to extract the url from.'),
         '#options' => $field_options,
-        '#default_value' => isset($field_mapping['bpi_field_tags']) ? $field_mapping['bpi_field_tags'] : NULL,
+        '#default_value' => isset($field_mapping['bpi_field_url']) ? $field_mapping['bpi_field_url'] : NULL,
       ),
-
-      'bpi_field_materials' => array(
-        '#type' => 'select',
-        '#title' => t('BPI materials'),
-        '#description' => t('Field used to get reference to the T!NG data well.'),
-        '#options' => $field_options,
-        '#default_value' => isset($field_mapping['bpi_field_materials']) ? $field_mapping['bpi_field_materials'] : NULL,
-      ),
-    );
+);
   }
 
   return NULL;
@@ -82,19 +74,13 @@ function ding_campaign_bpi_get_field_mapping_form($bpi_type, $content_type, arra
  */
 function ding_campaign_bpi_convert_to_bpi_alter(&$bpi_content, $node, $mapping) {
   if (isset($mapping['bpi_node_type']) && in_array($mapping['bpi_node_type'], ding_campaign_bpi_syndicate_get_bpi_types())) {
-    $bpi_content['type'] = 'campaign';
+    $url_field = isset($mapping['bpi_field_mapping']['bpi_field_url']) ? field_view_field('node', $node, $mapping['bpi_field_mapping']['bpi_field_url']) : NULL;
+    $url = bpi_get_field_value($url_field);
+    $bpi_content['url'] = $url;
+
+    $campaign_type = bpi_get_field_value(field_view_field('node', $node, 'field_camp_settings'));
     $bpi_content['data'] = array(
-      'campaign_type' => 'image',
-    );
-    $bpi_content['assets'] = array(
-      array(
-        'path' => 'https://placekitten.com/400/300',
-        'alt' => '',
-        'title' => '',
-        'type' => 'image',
-        'name' => '400x300',
-        'extension' => 'jpg',
-      ),
+      'type' => $campaign_type,
     );
   }
 }
@@ -113,36 +99,18 @@ function ding_campaign_bpi_syndicate_form_alter(&$form, $bpi_content, $syndicate
 
   $form['field_camp_settings'][$current_language]['#default_value'] = $type;
   $form['field_camp_link'][$current_language][0]['value']['#default_value'] = isset($bpi_content['url']) ? $bpi_content['url'] : NULL;
-
-  switch ($type) {
-    case 'full':
-      break;
-    case 'image':
-      ding_campaign_bpi_place_images($form, $current_language, $syndicated_images);
-      break;
-    case 'plain':
-      break;
-  }
 }
 
-function ding_campaign_bpi_place_images(array &$form, $current_language, $syndicated_images) {
-  if ($syndicated_images) {
-    header('Content-type: text/plain'); echo var_export($syndicated_images, true); die(__FILE__.':'.__LINE__.':'.__METHOD__);
-  }
-  foreach ($assets as $type => $images) {
-    if ($type === 'image') {
-      $field = &$form['field_camp_image'][$current_language];
-      $cardinality = isset($field['#cardinality']) ? $field['#cardinality'] : 1;
-      // The cardinality of a field with an unlimited number of values is -1.
-      if ($cardinality < 0) {
-        $cardinality = PHP_INT_MAX;
-      }
-      $number_of_images_to_place = min(count($images), $cardinality);
-      for ($i = 0; $i < $number_of_images_to_place; $i++) {
-        if (is_object($images[$i]['@managed_file'])) {
-          $field[$i]['#default_value'] = array('fid' => $images[$i]['@managed_file']->fid);
-        }
-      }
+/**
+ * Implements hook_bpi_get_image_type().
+ */
+function ding_campaign_bpi_get_image_type($image_field_name, $node) {
+  if ($node->type === 'ding_campaign') {
+    $pattern = '/field_camp_(?<image_type>.+)/';
+    if (preg_match($pattern, $image_field_name, $matches)) {
+      return $matches['image_type'];
     }
   }
+
+  return NULL;
 }

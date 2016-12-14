@@ -25,7 +25,7 @@ function bpi_bpi_get_field_mapping_form($bpi_type, $content_type, array $field_m
         '#title' => t('BPI title'),
         '#description' => t('Titles are automatically assigned.'),
         '#options' => array('title' => t('Title')),
-        '#default_value' => isset($field_mapping['bpi_field_title']) ? $field_mapping['bpi_field_title'] : NULL,
+        '#value' => 'title',
         '#disabled' => TRUE,
       ),
 
@@ -40,7 +40,7 @@ function bpi_bpi_get_field_mapping_form($bpi_type, $content_type, array $field_m
       'bpi_field_body' => array(
         '#type' => 'select',
         '#title' => t('BPI body'),
-        '#description' => t('Field to extract the main cotenten from (body field).'),
+        '#description' => t('Field to extract the main content from (body field).'),
         '#options' => $field_options,
         '#default_value' => isset($field_mapping['bpi_field_body']) ? $field_mapping['bpi_field_body'] : NULL,
       ),
