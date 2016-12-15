@@ -264,6 +264,7 @@ function bpi_admin_content_mapping_form(array $form, array &$form_state) {
   $form['bpi_syndication'] = array(
     '#type' => 'fieldset',
     '#title' => t('Syndication settings'),
+    '#tree' => FALSE,
   );
 
   $form['bpi_syndication']['bpi_syndicate_tags'] = array(
