@@ -1255,3 +1255,61 @@ function bpi_get_mapping_by_content_type($content_type) {
 
   return NULL;
 }
+
+/**
+ * Add BPI workflow field to a content type.
+ *
+ * @param string $content_type
+ *   The content type name.
+ */
+function bpi_add_bpi_workflow($content_type) {
+  $field_name = 'field_bpi_workflow';
+  $field = field_info_field($field_name);
+  if ($field) {
+    // Create field instance.
+    $entity_type = 'node';
+    $bundle = $content_type;
+    if (!field_info_instance($entity_type, $field_name, $bundle)) {
+      $instance = array(
+        'field_name' => $field_name,
+        'entity_type' => $entity_type,
+        'bundle' => $bundle,
+        'label' => t('BPI workflow'),
+      );
+      field_create_instance($instance);
+    }
+
+    // Create group.
+    $group_name = 'group_workflow';
+    $mode = 'form';
+    $group = field_group_load_field_group($group_name, $entity_type, $bundle, $mode);
+
+    if (!$group) {
+      $group = (object)array(
+        'identifier' => $group_name . '|' . $entity_type . '|' . $bundle . '|' . $mode,
+        'group_name' => $group_name,
+        'entity_type' => $entity_type,
+        'bundle' => $bundle,
+        'mode' => $mode,
+        'parent_name' => '',
+        'table' => 'field_group',
+        'type' => 'Normal',
+        'disabled' => FALSE,
+        'label' => t('BPI'),
+        'weight' => '100',
+        'format_type' => 'tab',
+        'format_settings' => array(
+          'formatter' => 'closed',
+          'instance_settings' => array(
+            'required_fields' => 0,
+            'classes' => '',
+            'description' => 'Data in this group will only be saved when "Save and push" is used.',
+          ),
+        ),
+      );
+    }
+
+    $group->children = array($field_name);
+    field_group_group_save($group);
+  }
+}

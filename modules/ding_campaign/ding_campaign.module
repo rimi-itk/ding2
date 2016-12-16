@@ -721,3 +721,16 @@ function _ding_campaign_rule_by_type($node_type) {
 
   return $type;
 }
+
+/**
+ * Implements hook_modules_enabled().
+ *
+ * Add the BPI workflow field instance when BPI module is enabled.
+ */
+function ding_campaign_modules_enabled($modules) {
+  if (in_array('bpi', $modules)) {
+    if (function_exists('bpi_add_bpi_workflow')) {
+      bpi_add_bpi_workflow('ding_campaign');
+    }
+  }
+}

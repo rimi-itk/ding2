@@ -129,3 +129,10 @@ function ding_campaign_update_7004() {
 
   db_change_field('ding_campaign_rules', 'rule', 'rule', $new_def);
 }
+
+/**
+ * Add BPI workflow field.
+ */
+function ding_campaign_update_7005() {
+  bpi_add_bpi_workflow('ding_campaign');
+}
