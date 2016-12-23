@@ -702,7 +702,7 @@ function _bpi_get_current_search_phrase() {
 function bpi_label_mapper($key) {
   $map = bpi_available_map();
 
-  return isset($map[$key]) ? $map[$key] : '';
+  return isset($map[$key]) ? $map[$key] : $key;
 }
 
 /**
@@ -722,6 +722,8 @@ function bpi_available_map() {
     'audience' => t('Audience'),
     'material' => t('Related materials'),
     'tags' => t('Tags'),
+    'url' => t('Url'),
+    'data' => t('Data'),
     'agency_id' => t('Agency'),
     'agency_internal' => t('Agency internal'),
     'logicalOperator' => t('Logical operator'),

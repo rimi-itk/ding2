@@ -34,7 +34,7 @@ function hook_bpi_syndicate_action_url($bpi_type, $bpi_id, array $mapping) {
  * @param array $bpi_content
  *   The BPI content.
  * @param array $node
- *   The node..
+ *   The node.
  * @param array $mapping
  *   The BPI mapping of the node.
  */
@@ -53,6 +53,23 @@ function hook_bpi_convert_to_bpi_alter(array &$bpi_content, $node, array $mappin
  *   The image type.
  */
 function hook_bpi_get_image_type($image_field_name, $node) {
+}
+
+/**
+ * Alter preview data before display.
+ *
+ * @param array $bpi_content
+ *   The BPI content.
+ * @param \Bpi\Sdk\Item\Node $bpi_node
+ *   The BPI node.
+ */
+function hook_bpi_preview_item_alter(array &$bpi_content, $bpi_node) {
+  if (isset($bpi_content['data'])) {
+    $item_data = @json_decode($bpi_content['data']);
+    if ($item_data !== FALSE) {
+      $bpi_content['custom_field'] = $item_data->custom_field;
+    }
+  }
 }
 
 /**

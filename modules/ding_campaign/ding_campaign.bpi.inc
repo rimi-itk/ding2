@@ -114,3 +114,35 @@ function ding_campaign_bpi_get_image_type($image_field_name, $node) {
 
   return NULL;
 }
+
+/**
+ * Implements hook_bpi_preview_item_alter().
+ */
+function ding_campaign_bpi_preview_item_alter(array &$bpi_content, $bpi_node) {
+  if (isset($bpi_content['data'])) {
+    $item_data = @json_decode($bpi_content['data']);
+    if ($item_data !== FALSE && isset($item_data->type)) {
+      $data = array();
+      $field_instance = field_info_instance('node', 'field_camp_settings', 'ding_campaign');
+      if (isset($field_instance['field_name'])) {
+        $field = field_info_field($field_instance['field_name']);
+        if (isset($item_data->type, $field['settings']['allowed_values'][$item_data->type])) {
+          $data[$field_instance['label']] = $field['settings']['allowed_values'][$item_data->type];
+        }
+      }
+      $bpi_content['data'] = $data;
+
+      switch ($item_data->type) {
+        case 'full':
+          unset($bpi_content['teaser']);
+          break;
+        case 'image':
+          unset($bpi_content['teaser'], $bpi_content['body']);
+          break;
+        case 'plain':
+          unset($bpi_content['body']);
+          break;
+      }
+    }
+  }
+}

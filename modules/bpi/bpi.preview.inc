@@ -27,6 +27,9 @@ function admin_bpi_preview_ajax_callback($type, $bpi_id) {
     $bpi = bpi_client_instance();
     $bpi_node = $bpi->getNode($bpi_id);
     $bpi_content = $bpi_node->getProperties();
+    $bpi_content['assets'] = $bpi_node->getAssets();
+
+    drupal_alter('bpi_preview_item', $bpi_content, $bpi_node);
   }
   catch (Exception $e) {
     watchdog_exception('bpi', $e);
