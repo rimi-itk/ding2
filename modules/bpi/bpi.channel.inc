@@ -892,8 +892,8 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
 
   $table_head = array(
     array(
-      'data' => bpi_get_sort_link(t('Title'), 'title'),
-      'class' => array('bpi-title', _bpi_get_current_sorting('title') ? 'active' : ''),
+      'data' => bpi_get_sort_link(t('Name'), 'name'),
+      'class' => array('bpi-title', _bpi_get_current_sorting('name') ? 'active' : ''),
     ),
     array(
       'data' => t('Description'),
@@ -909,20 +909,20 @@ function bpi_preprocess_bpi_channel_list(array &$variables) {
       'class' => array('bpi-agency', _bpi_get_current_sorting('agency') ? 'active' : ''),
     ),
     array(
-      'data' => bpi_get_sort_link(t('Number of nodes'), 'nodes'),
-      'class' => array('bpi-nodes', _bpi_get_current_sorting('nodes') ? 'active' : ''),
+      'data' => t('Number of nodes'),
+      'class' => array('bpi-nodes'),
     ),
     array(
-      'data' => bpi_get_sort_link(t('Node last added at'), 'node_last_added_at'),
-      'class' => array('bpi-node-last-added-at', _bpi_get_current_sorting('node_last_added_at') ? 'active' : ''),
+      'data' => bpi_get_sort_link(t('Node last added at'), 'nodeLastAddedAt'),
+      'class' => array('bpi-node-last-added-at', _bpi_get_current_sorting('nodeLastAddedAt') ? 'active' : ''),
     ),
     array(
       'data' => t('Has new content'),
       'class' => array('bpi-has-new-content'),
     ),
     array(
-      'data' => bpi_get_sort_link(t('Subscribed to channel?'), 'subscribed_to_channel'),
-      'class' => array('bpi-subscribed-to-channel', _bpi_get_current_sorting('subscribed_to_channel') ? 'active' : ''),
+      'data' => t('Subscribed to channel?'),
+      'class' => array('bpi-subscribed-to-channel'),
     ),
     array(
       'data' => t('Actions'),
