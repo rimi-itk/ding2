@@ -399,3 +399,10 @@ function ding2_update_7025() {
 function ding2_update_7026() {
   module_enable(array('mmeu'));
 }
+
+/*
+ * Update our own translations.
+ */
+function ding2_update_7027() {
+  ding2_translation_update();
+}

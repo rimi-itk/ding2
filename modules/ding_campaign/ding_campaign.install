@@ -129,4 +129,3 @@ function ding_campaign_update_7004() {
 
   db_change_field('ding_campaign_rules', 'rule', 'rule', $new_def);
 }
-

@@ -8,6 +8,7 @@
 
 include_once drupal_get_path('module', 'bpi') . '/bpi.images.inc';
 include_once drupal_get_path('module', 'bpi') . '/bpi.push.inc';
+include_once drupal_get_path('module', 'bpi') . '/bpi.bpi.inc';
 
 /**
  * URL search query key.
@@ -69,6 +70,149 @@ function bpi_menu() {
     'file' => 'bpi.syndicate.inc',
   );
 
+  $menu['admin/bpi/node'] = array(
+    'title' => 'BPI syndication',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'description' => 'Syndicate content from the well.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_syndicate_page_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.syndicate.inc',
+  );
+
+  $menu['admin/bpi/channel'] = array(
+    'title' => 'Channels',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show all channels.',
+    'page callback' => 'bpi_channel_list',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/all'] = array(
+    'title' => 'All channels',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'description' => 'Show all channels.',
+    'page callback' => 'bpi_channel_list',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/user'] = array(
+    'title' => 'My channels',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show user\'s channels.',
+    'page callback' => 'bpi_channel_user_list',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+    'weight' => 1,
+  );
+
+  $menu['admin/bpi/channel/subscriptions'] = array(
+    'title' => 'My channel subscriptions',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show my channel subscriptions.',
+    'page callback' => 'bpi_channel_subscription_list',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+    'weight' => 2,
+  );
+
+  $menu['admin/bpi/channel/add'] = array(
+    'title' => 'Add channel',
+    'type' => MENU_LOCAL_ACTION,
+    'description' => 'Add a new channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_edit_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+    'weight' => 3,
+  );
+
+  $menu['admin/bpi/channel/subscription'] = array(
+    'title' => 'Subscribe to channel',
+    'description' => 'Subscribe current user to a channel.',
+    'page callback' => 'bpi_channel_subscription',
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  // "Add channel" should also be available under "My channels".
+  $menu['admin/bpi/channel/user/add'] = $menu['admin/bpi/channel/add'];
+
+  $menu['admin/bpi/channel/%'] = array(
+    'title' => 'Channel details',
+    'description' => 'Show channel details.',
+    'page callback' => 'bpi_channel_view',
+    'page arguments' => array(3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/edit'] = array(
+    'title' => 'Edit channel',
+    'description' => 'Edit channel details.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_edit_form', 3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/delete'] = array(
+    'title' => 'Delete channel',
+    'description' => 'Delete channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_delete_form', 3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/editor/remove/%'] = array(
+    'title' => 'Remove editor from channel',
+    'description' => 'Remove editor from channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_editor_remove_form', 3, 6),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/node/add/%'] = array(
+    'title' => 'Add node to channel',
+    'description' => 'Add node to channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_node_add_form', 5),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/channel/%/node/remove/%'] = array(
+    'title' => 'Remove node from channel',
+    'description' => 'Remove node from channel.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_channel_node_remove_form', 3, 6),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.channel.inc',
+  );
+
+  $menu['admin/bpi/user'] = array(
+    'title' => 'Users',
+    'type' => MENU_LOCAL_TASK,
+    'description' => 'Show all users.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('bpi_user_list_form'),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
+  $menu['admin/bpi/user/%'] = array(
+    'title' => 'User details',
+    'description' => 'Show user details.',
+    'page callback' => 'bpi_user_view',
+    'page arguments' => array(3),
+    'access callback' => 'bpi_access',
+    'file' => 'bpi.user.inc',
+  );
+
   $menu['admin/bpi/preview/%/%'] = array(
     'page callback' => 'admin_bpi_preview_ajax_callback',
     'page arguments' => array(3, 4),
@@ -77,9 +221,9 @@ function bpi_menu() {
     'file' => 'bpi.preview.inc',
   );
 
-  $menu['admin/bpi/syndicate/%'] = array(
+  $menu['admin/bpi/syndicate/%/%'] = array(
     'page callback' => 'bpi_syndicate_action',
-    'page arguments' => array(3),
+    'page arguments' => array(3, 4),
     'access arguments' => array('bpi syndicate content'),
     'file' => 'bpi.syndicate.inc',
   );
@@ -213,12 +357,33 @@ function bpi_theme($existing, $type, $theme, $path) {
       'template' => 'bpi-filter-item',
     ),
     'bpi_preview_item' => array(
+      'variables' => array('item' => array(), 'no_actions' => FALSE),
       'path' => $path . '/templates/',
       'template' => 'bpi-preview-item',
     ),
     'bpi_search_results' => array(
       'variables' => array('items' => array()),
       'file' => 'bpi.syndicate.inc',
+    ),
+    'bpi_channel_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.channel.inc',
+    ),
+    'bpi_channel_view' => array(
+      'path' => $path . '/templates/',
+      'template' => 'bpi-channel-view',
+    ),
+    'bpi_channel_node_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.channel.inc',
+    ),
+    'bpi_user_list' => array(
+      'variables' => array('items' => array()),
+      'file' => 'bpi.user.inc',
+    ),
+    'bpi_user_view' => array(
+      'path' => $path . '/templates/',
+      'template' => 'bpi-user-view',
     ),
   );
 }
@@ -234,13 +399,21 @@ function bpi_theme($existing, $type, $theme, $path) {
  * handler, which will add our own submit handler.
  */
 function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
-  $bpi_ctype = variable_get('bpi_content_type', '');
+  $bpi_type = isset($_GET['bpi_type']) ? (string) $_GET['bpi_type'] : FALSE;
+  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
 
-  if (empty($bpi_ctype)) {
+  if (empty($bpi_type) || empty($bpi_id)) {
     return;
   }
 
-  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
+  $mapping = bpi_get_mapping($bpi_type);
+
+  if (empty($mapping)) {
+    return;
+  }
+
+  $bpi_ctype = $mapping['bpi_content_type'];
+
   $form_state['node']->bpi_id = $bpi_id;
 
   // Checking is_new to see if it's a create node form, not edit.
@@ -272,11 +445,11 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
 
       return;
     }
-
+    $field_mapping = $mapping['bpi_field_mapping'];
     $form['title']['#default_value'] = isset($bpi_content['title']) ? $bpi_content['title'] : '';
-    $teaser = variable_get('bpi_field_teaser', '');
-    $body = variable_get('bpi_field_body', '');
-    $materials_field = variable_get('bpi_field_materials', '');
+    $teaser = isset($field_mapping['bpi_field_teaser']) ? $field_mapping['bpi_field_teaser'] : NULL;
+    $body = isset($field_mapping['bpi_field_body']) ? $field_mapping['bpi_field_body'] : NULL;
+    $materials_field = isset($field_mapping['bpi_field_materials']) ? $field_mapping['bpi_field_materials'] : NULL;
 
     // Current language will be set to undefined, because this module is
     // lexigraphically before the locale module. If e.g. the weight in the
@@ -357,6 +530,9 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
     elseif (isset($form[$body][$current_language][0])) {
       $form[$body][$current_language][0]['#default_value'] = $bpi_body;
     }
+
+    // Call hooks to handle specific bpi content type.
+    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $syndicated_images);
   }
 
   // Add BPI fields.
@@ -964,4 +1140,118 @@ function bpi_libraries_info() {
   );
 
   return $libraries;
+}
+
+/*
+ * Implements hook_user_login().
+ *
+ * Creates user in bpi web service.
+ */
+function bpi_user_login(&$edit, $account) {
+  if (bpi_access()) {
+    if (empty($account->data['bpi_user_id'])) {
+      // Create bpi user.
+      $bpi = bpi_client_instance();
+      try {
+        $bpi_user = $bpi->createUser(array(
+          'externalId' => $account->uuid,
+          'email' => $account->mail,
+          'firstName' => $account->name,
+          'lastName' => '',
+        ));
+
+        if ($bpi_user && $bpi_user->getId()) {
+          user_save($account, array('data' => array('bpi_user_id' => $bpi_user->getId())));
+        }
+      }
+      catch (\Exception $e) {
+        drupal_set_message(t('Cannot create bpi user !email', array('!email' => $account->mail)), 'error');
+        watchdog_exception('bpi', $e, 'Cannot create bpi user ' . $account->uuid . ' ' . $account->mail);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_user_update().
+ */
+function bpi_user_update(&$edit, $account, $category) {
+  if (bpi_access()) {
+    if (!empty($account->data['bpi_user_id'])) {
+      $bpi = bpi_client_instance();
+      try {
+        $bpi->updateUser($account->data['bpi_user_id'], array(
+          'email' => $account->mail,
+          'firstName' => $account->name,
+          'lastName' => '',
+        ));
+      }
+      catch (\Exception $e) {
+        drupal_set_message(t('Cannot update bpi user !email', array('!email' => $account->mail)), 'error');
+        watchdog_exception('bpi', $e, 'Cannot update bpi user ' . $account->uuid . ' ' . $account->mail);
+      }
+    }
+  }
+}
+
+/**
+ * Set BPI mappings.
+ *
+ * @param array $bpi_mappings
+ *   The mappings.
+ */
+function bpi_set_mappings(array $bpi_mappings) {
+  variable_set('bpi_mappings', $bpi_mappings);
+}
+
+/**
+ * Get all BPI mappings.
+ *
+ * @return array
+ *   All defined mappings.
+ */
+function bpi_get_mappings() {
+  return variable_get('bpi_mappings', array());
+}
+
+/**
+ * Get mapping of a BPI node type.
+ *
+ * @param string $bpi_type
+ *   The BPI node type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping($bpi_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if ($mapping['bpi_node_type'] === $bpi_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Get mapping of a BPI node type by Drupal content type.
+ *
+ * @param string $content_type
+ *   The Drupal content type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping_by_content_type($content_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if (isset($mapping['bpi_content_type']) && $mapping['bpi_content_type'] === $content_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
 }
