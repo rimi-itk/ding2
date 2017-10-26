@@ -1,4 +1,6 @@
 /modules/contrib
 /libraries
 themes/ddbasic/node_modules
+themes/ddbasic/sass_css_verbose_output/
+themes/ddbasic/scripts/min/
 config.php
