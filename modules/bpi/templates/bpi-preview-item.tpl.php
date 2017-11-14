@@ -38,7 +38,7 @@
 
   <?php if (isset($syndicate_url)): ?>
     <p class="item-action item-action-syndicate">
-      <?php echo l(t('Syndicate'), $syndicate_url); ?>
+      <a href="<?php echo htmlspecialchars($syndicate_url); ?>"><?php echo t('Syndicate'); ?></a>
     </p>
   <?php endif ?>
 </div>
