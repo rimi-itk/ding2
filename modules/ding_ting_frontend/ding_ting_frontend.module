@@ -50,11 +50,7 @@ function ding_ting_frontend_entity_info_alter(&$entity_info) {
       'reference_teaser' => array(
         'label' => t('Reference teaser'),
         'custom settings' => TRUE,
-      ),
-      'paragraphs_teaser' => array(
-        'label' => t('Paragraphs teaser'),
-        'custom settings' => TRUE,
-      ),
+      )
     );
   }
 }
