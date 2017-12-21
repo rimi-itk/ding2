@@ -37,8 +37,12 @@
   </div>
 
   <?php if (!$no_actions): ?>
-    <p class="item-action item-action-syndicate">
-      <?php echo l(t('Syndicate'), 'admin/bpi/syndicate/' . $item['id']); ?>
+    <?php if (isset($syndicate_url)): ?>
+      <p class="item-action item-action-syndicate">
+        <a href="<?php echo htmlspecialchars($syndicate_url); ?>"><?php echo t('Syndicate'); ?></a>
+      </p>
+    <?php endif ?>
+    <p class="item-action item-action-add-to-channel">
       <?php echo l(t('Add to channel'), 'admin/bpi/channel/node/add/' . $item['id']); ?>
     </p>
   <?php endif ?>

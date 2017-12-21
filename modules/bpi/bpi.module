@@ -8,6 +8,7 @@
 
 include_once drupal_get_path('module', 'bpi') . '/bpi.images.inc';
 include_once drupal_get_path('module', 'bpi') . '/bpi.push.inc';
+include_once drupal_get_path('module', 'bpi') . '/bpi.bpi.inc';
 
 /**
  * URL search query key.
@@ -224,9 +225,9 @@ function bpi_menu() {
     'file' => 'bpi.preview.inc',
   );
 
-  $menu['admin/bpi/syndicate/%'] = array(
+  $menu['admin/bpi/syndicate/%/%'] = array(
     'page callback' => 'bpi_syndicate_action',
-    'page arguments' => array(3),
+    'page arguments' => array(3, 4),
     'access arguments' => array('bpi syndicate content'),
     'file' => 'bpi.syndicate.inc',
   );
@@ -360,6 +361,7 @@ function bpi_theme($existing, $type, $theme, $path) {
       'template' => 'bpi-filter-item',
     ),
     'bpi_preview_item' => array(
+      'variables' => array('item' => array(), 'no_actions' => FALSE),
       'path' => $path . '/templates/',
       'template' => 'bpi-preview-item',
     ),
@@ -401,13 +403,21 @@ function bpi_theme($existing, $type, $theme, $path) {
  * handler, which will add our own submit handler.
  */
 function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
-  $bpi_ctype = variable_get('bpi_content_type', '');
+  $bpi_type = isset($_GET['bpi_type']) ? (string) $_GET['bpi_type'] : FALSE;
+  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
 
-  if (empty($bpi_ctype)) {
+  if (empty($bpi_type) || empty($bpi_id)) {
     return;
   }
 
-  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
+  $mapping = bpi_get_mapping($bpi_type);
+
+  if (empty($mapping)) {
+    return;
+  }
+
+  $bpi_ctype = $mapping['bpi_content_type'];
+
   $form_state['node']->bpi_id = $bpi_id;
 
   // Checking is_new to see if it's a create node form, not edit.
@@ -439,11 +449,11 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
 
       return;
     }
-
+    $field_mapping = $mapping['bpi_field_mapping'];
     $form['title']['#default_value'] = isset($bpi_content['title']) ? $bpi_content['title'] : '';
-    $teaser = variable_get('bpi_field_teaser', '');
-    $body = variable_get('bpi_field_body', '');
-    $materials_field = variable_get('bpi_field_materials', '');
+    $teaser = isset($field_mapping['bpi_field_teaser']) ? $field_mapping['bpi_field_teaser'] : NULL;
+    $body = isset($field_mapping['bpi_field_body']) ? $field_mapping['bpi_field_body'] : NULL;
+    $materials_field = isset($field_mapping['bpi_field_materials']) ? $field_mapping['bpi_field_materials'] : NULL;
 
     // Current language will be set to undefined, because this module is
     // lexigraphically before the locale module. If e.g. the weight in the
@@ -524,6 +534,9 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
     elseif (isset($form[$body][$current_language][0])) {
       $form[$body][$current_language][0]['#default_value'] = $bpi_body;
     }
+
+    // Call hooks to handle specific bpi content type.
+    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $syndicated_images);
   }
 
   // Add BPI fields.
@@ -1356,6 +1369,136 @@ function bpi_user_update(&$edit, $account, $category) {
       catch (\Exception $e) {
         drupal_set_message(t('Cannot update bpi user !email', array('!email' => $account->mail)), 'error');
         watchdog_exception('bpi', $e, 'Cannot update bpi user ' . $account->uuid . ' ' . $account->mail);
+      }
+    }
+  }
+}
+
+/**
+ * Set BPI mappings.
+ *
+ * @param array $bpi_mappings
+ *   The mappings.
+ */
+function bpi_set_mappings(array $bpi_mappings) {
+  variable_set('bpi_mappings', $bpi_mappings);
+}
+
+/**
+ * Get all BPI mappings.
+ *
+ * @return array
+ *   All defined mappings.
+ */
+function bpi_get_mappings() {
+  return variable_get('bpi_mappings', array());
+}
+
+/**
+ * Get mapping of a BPI node type.
+ *
+ * @param string $bpi_type
+ *   The BPI node type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping($bpi_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if ($mapping['bpi_node_type'] === $bpi_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Get mapping of a BPI node type by Drupal content type.
+ *
+ * @param string $content_type
+ *   The Drupal content type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping_by_content_type($content_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if (isset($mapping['bpi_content_type']) && $mapping['bpi_content_type'] === $content_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Ensure that all content types used by BPI has the BPI workflow field.
+ */
+function bpi_ensure_bpi_workflow_fields() {
+  $entity_type = 'node';
+  $field_name = 'field_bpi_workflow';
+  $workflow_field = field_info_field($field_name);
+  if ($workflow_field !== NULL) {
+    $mappings = bpi_get_mappings();
+    foreach ($mappings as $mapping) {
+      // Create workflow field.
+      $content_type = $mapping['bpi_content_type'];
+      $field_instance = field_info_instance($entity_type, $field_name, $content_type);
+      if ($field_instance === NULL) {
+        $instance = array(
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'label' => 'BPI workflow',
+          'bundle' => $content_type,
+          'widget' => array(
+            'active' => 1,
+            'module' => 'workflowfield',
+            'settings' => array(
+              'comment' => 1,
+              'name_as_title' => 1,
+            ),
+            'type' => 'workflow_default',
+            'weight' => 35,
+          )
+        );
+        field_create_instance($instance);
+        drupal_set_message(t('Added BPI workflow field to content type @content_type', array('@content_type' => $content_type)));
+      }
+
+      // Create workflow group.
+      $group_name = 'group_workflow';
+      $mode = 'form';
+      if (!field_group_exists($group_name, $entity_type, $content_type, $mode)) {
+        $group = (object)array(
+          'identifier' => $group_name . '|' . $entity_type . '|' . $content_type . '|' . $mode,
+          'group_name' => $group_name,
+          'entity_type' => $entity_type,
+          'bundle' => $content_type,
+          'mode' => $mode,
+          'label' => 'BPI',
+          'weight' => '100',
+          'children' => array($field_name),
+          'format_type' => 'tab',
+          'format_settings' => array(
+            'label' => 'BPI',
+            'instance_settings' => array(
+              'required_fields' => 0,
+              'classes' => '',
+              'description' => 'Data in this group will only be saved when "Save and push" is used.',
+            ),
+            'formatter' => 'closed',
+          ),
+        );
+        field_group_group_save($group);
+
+        // Enable the field group.
+        ctools_include('export');
+        ctools_export_crud_enable('field_group', $group->identifier);
       }
     }
   }

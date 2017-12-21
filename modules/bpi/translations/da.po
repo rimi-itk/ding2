@@ -18,7 +18,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "POT-Creation-Date: 2013-07-24 15:16+0300\n"
-"PO-Revision-Date: 2017-12-18 14:57+0100\n"
+"PO-Revision-Date: 2017-12-21 10:20+0100\n"
 "Last-Translator: Mikkel Ricky <rimi@aarhus.dk>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
 "MIME-Version: 1.0\n"
@@ -625,3 +625,36 @@ msgstr "Ingen brugere fundet"
 
 msgid "Please select one or more users"
 msgstr "Vælg venligst én eller flere brugere"
+
+msgid "BPI node type"
+msgstr "BPI-indholdstype"
+
+msgid "article"
+msgstr "artikel"
+
+msgid "campaign"
+msgstr "kampagne"
+
+msgid "BPI tags"
+msgstr "Tags (BPI)"
+
+msgid "BPI materials"
+msgstr "Materialer (BPI)"
+
+msgid "Mapping (@bpi_type)"
+msgstr "Tilknytning (@bpi_type)"
+
+msgid "Enter the BPI node type, e.g. ding_news, campaign, carousel."
+msgstr "Vælg BPI-indholdstypen."
+
+msgid "If you change the content type, you have to save the form before editing the field mapping."
+msgstr "Hvis du ændrer indholdstypen, skal du gemme formularen før du redigerer felttilknytningen."
+
+msgid "Remove mapping of @bpi_type"
+msgstr "Fjern tilknytning af @bpi_type"
+
+msgid "Save to remove mapping of @bpi_type"
+msgstr "Gem for at fjerne tilknytning af @bpi_type"
+
+msgid "Add mapping"
+msgstr "Tilføj tilknytning"
