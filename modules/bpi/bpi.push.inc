@@ -118,7 +118,7 @@ function bpi_http_push_action_form($nid) {
  * @todo Add a hook allowing changing the values before they are sent to BPI.
  * @todo Split this function into smaller parts (ex: images, texts).
  */
-function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $authorship = FALSE, $editable = 1, $with_refs = FALSE) {
+function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $authorship = FALSE, $editable = 1, $with_refs = FALSE, array $mapping = array()) {
   $bpi_content = array();
 
   $bpi_content['agency_id'] = variable_get('bpi_agency_id', '');
@@ -133,65 +133,48 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
 
   $bpi_content['title'] = $node->title;
 
-
-  $teaser_field = field_view_field('node', $node, variable_get('bpi_field_teaser', ''));
-  $body_field = field_view_field('node', $node, variable_get('bpi_field_body', ''));
-  $teaser = '';
-  $body = '';
-
-  // Whether the field is a text area with summary, fetch the summary, if not -
-  // fetch it's safe value.
-  if (!empty($teaser_field) && isset($teaser_field['#items'][0]['safe_summary'])) {
-    $teaser = $teaser_field['#items'][0]['safe_summary'];
-  }
-  elseif (isset($teaser_field['#items'][0]['safe_value'])) {
-    $teaser = $teaser_field['#items'][0]['safe_value'];
-  }
-  elseif (isset($teaser_field[0]['#markup'])) {
-    $teaser = $teaser_field[0]['#markup'];
-  }
+	$field_mapping = $mapping['field_mapping'];
+  $teaser_field = isset($field_mapping['teaser']) ? field_view_field('node', $node, $field_mapping['teaser']) : NULL;
+  $body_field = isset($field_mapping['body']) ? field_view_field('node', $node, $field_mapping['body']) : NULL;
+  $teaser = bpi_get_field_value($teaser_field);
+  $body = bpi_get_field_value($body_field);
 
   // Find the references to the ting date well.
   $materials_drupal = array();
   if ($with_refs) {
-    // Function field_get_items returns data with 2 different structure, depending from stage when it was called.
-    $items = field_get_items('node', $node, variable_get('bpi_field_materials', ''));
-    foreach ((array) $items as $item) {
-      // First case, we have completly saved node, when it returns ding_object_id.
-      if (!empty($item['ting_object_id'])) {
-        $id = $item['ting_object_id'];
-        // Filter out id's with "katalog" PID, as they only makes sens on
-        // current site.
-        if (!preg_match('/katalog/', $id)) {
-          $materials_drupal[] = $id;
-        }
-      }
-      // Second case, we used "Save and push" button and node wasn't completly saved
-      // In this case, we have object of class Relation.
-      elseif (isset($item['value']->endpoints)) {
-        $endpoints = $item['value']->endpoints;
-        $data = array_filter($endpoints[LANGUAGE_NONE], function ($i) {
-          return $i['entity_type'] == 'ting_object';
-        });
-        if (!empty($data)) {
-          $ting_data = current($data);
-          $ting_object = entity_load_single('ting_object', $ting_data['entity_id']);
-          if ($ting_object) {
-            if (!preg_match('/katalog/', $ting_object->ding_entity_id)) {
-              $materials_drupal[] = $ting_object->ding_entity_id;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!empty($body_field) && isset($body_field['#items'][0]['safe_value'])) {
-    $body = $body_field['#items'][0]['safe_value'];
-  }
-  elseif (isset($body_field[0]['#markup'])) {
-    $body = $body_field[0]['#markup'];
-  }
+    if (isset($field_mapping['materials'])) {
+      // Function field_get_items returns data with 2 different structure, depending from stage when it was called.
+			$items = field_get_items('node', $node, $field_mapping['materials']);
+			foreach ((array) $items as $item) {
+				// First case, we have completly saved node, when it returns ding_object_id.
+				if (!empty($item['ting_object_id'])) {
+					$id = $item['ting_object_id'];
+					// Filter out id's with "katalog" PID, as they only makes sens on
+					// current site.
+					if (!preg_match('/katalog/', $id)) {
+						$materials_drupal[] = $id;
+					}
+				}
+				// Second case, we used "Save and push" button and node wasn't completly saved
+				// In this case, we have object of class Relation.
+				elseif (isset($item['value']->endpoints)) {
+					$endpoints = $item['value']->endpoints;
+					$data = array_filter($endpoints[LANGUAGE_NONE], function ($i) {
+						return $i['entity_type'] == 'ting_object';
+					});
+					if (!empty($data)) {
+						$ting_data = current($data);
+						$ting_object = entity_load_single('ting_object', $ting_data['entity_id']);
+						if ($ting_object) {
+							if (!preg_match('/katalog/', $ting_object->ding_entity_id)) {
+								$materials_drupal[] = $ting_object->ding_entity_id;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
   // Empty the teaser, if body and teaser are mapped to same fields
   // and the values are identical.
@@ -204,7 +187,7 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
   $dt = new DateTime();
   $dt->setTimestamp($node->changed);
   $bpi_content['creation'] = $dt->format(DateTime::W3C);
-  $bpi_content['type'] = $node->type;
+  $bpi_content['type'] = $mapping['bpi_node_type'];
   $bpi_content['category'] = $category;
   $bpi_content['audience'] = $audience;
   $bpi_content['related_materials'] = $materials_drupal;
@@ -250,23 +233,62 @@ function bpi_convert_to_bpi($node, $category, $audience, $with_images = FALSE, $
   }
 
   $tags = array();
-  $tags_field_name = variable_get('bpi_field_tags', '');
-  if (!empty($tags_field_name)) {
-    // We use field_view_field (rather than field_get_items, say) to get the
-    // actual taxonomy term names which we need to push to bpi.
-    $tags_field = field_view_field('node', $node, $tags_field_name);
-    if ($tags_field && isset($tags_field['#items'])) {
-      foreach ($tags_field['#items'] as $item) {
-        if (isset($item['taxonomy_term'])) {
-          $tags[] = $item['taxonomy_term']->name;
+  if (isset($field_mapping['tags'])) {
+    $tags_field_name = $field_mapping['tags'];
+    if (!empty($tags_field_name)) {
+      // We use field_view_field (rather than field_get_items, say) to get the
+      // actual taxonomy term names which we need to push to bpi.
+      $tags_field = field_view_field('node', $node, $tags_field_name);
+      if ($tags_field && isset($tags_field['#items'])) {
+        foreach ($tags_field['#items'] as $item) {
+          if (isset($item['taxonomy_term'])) {
+            $tags[] = $item['taxonomy_term']->name;
+          }
         }
       }
     }
   }
   $bpi_content['tags'] = implode(',', $tags);
 
+  drupal_alter('bpi_convert_to_bpi', $bpi_content, $node, $mapping);
+
+  if (is_array($bpi_content['data'])) {
+    $bpi_content['data'] = json_encode($bpi_content['data']);
+  }
+
   return $bpi_content;
 }
+
+/**
+ * Get string value from a content type field.
+ *
+ * @param array|NULL $field
+ *   The field.
+ *
+ * @return string
+ *   The field value.
+ */
+function bpi_get_field_value(array $field = NULL) {
+  $value = '';
+
+  if (!empty($field)) {
+    if (isset($field['#items'][0]['safe_summary'])) {
+      $value = $field['#items'][0]['safe_summary'];
+    }
+    elseif (isset($field['#items'][0]['safe_value'])) {
+      $value = $field['#items'][0]['safe_value'];
+    }
+    elseif (isset($field['#items'][0]['value'])) {
+      $value = $field['#items'][0]['value'];
+    }
+    elseif (isset($field[0]['#markup'])) {
+      $value = $field[0]['#markup'];
+    }
+  }
+
+  return $value;
+}
+
 
 /**
  * Fetch image field types.

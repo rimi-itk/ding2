@@ -8,6 +8,7 @@
 
 include_once drupal_get_path('module', 'bpi') . '/bpi.images.inc';
 include_once drupal_get_path('module', 'bpi') . '/bpi.push.inc';
+include_once drupal_get_path('module', 'bpi') . '/bpi.bpi.inc';
 
 /**
  * URL search query key.
@@ -85,14 +86,6 @@ function bpi_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
     'file' => 'bpi.preview.inc',
-  );
-
-  $menu['admin/bpi/syndicate/%'] = array(
-    'page callback' => 'bpi_syndicate_action',
-    'page arguments' => array(3),
-    'access arguments' => array('bpi syndicate content'),
-    'type' => MENU_CALLBACK,
-    'file' => 'bpi.syndicate.inc',
   );
 
   $menu['admin/bpi/statistics/nojs'] = array(
@@ -228,6 +221,7 @@ function bpi_theme($existing, $type, $theme, $path) {
       'template' => 'bpi-filter-item',
     ),
     'bpi_preview_item' => array(
+      'variables' => array('item' => array(), 'no_actions' => FALSE),
       'path' => $path . '/templates/',
       'template' => 'bpi-preview-item',
     ),
@@ -249,17 +243,25 @@ function bpi_theme($existing, $type, $theme, $path) {
  * handler, which will add our own submit handler.
  */
 function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
-  $bpi_ctype = variable_get('bpi_content_type', '');
+  $bpi_type = isset($_GET['bpi_type']) ? (string) $_GET['bpi_type'] : FALSE;
+  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
 
-  if (empty($bpi_ctype)) {
+  if (empty($bpi_type) || empty($bpi_id)) {
     return;
   }
 
-  $bpi_id = isset($_GET['bpi_id']) ? (string) $_GET['bpi_id'] : FALSE;
+  $mapping = bpi_get_mapping($bpi_type);
+
+  if (empty($mapping)) {
+    return;
+  }
+
+  $content_type = $mapping['content_type'];
+
   $form_state['node']->bpi_id = $bpi_id;
 
   // Checking is_new to see if it's a create node form, not edit.
-  if ($form_id == $bpi_ctype . '_node_form' && !isset($form_state['node']->is_new) && $bpi_id) {
+  if ($form_id == $content_type . '_node_form' && !isset($form_state['node']->is_new) && $bpi_id) {
     $form_state['node']->bpi_id = $bpi_id;
     try {
       $bpi = bpi_client_instance();
@@ -297,11 +299,11 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
 
       return;
     }
-
+    $field_mapping = $mapping['field_mapping'];
     $form['title']['#default_value'] = isset($bpi_content['title']) ? $bpi_content['title'] : '';
-    $teaser = variable_get('bpi_field_teaser', '');
-    $body = variable_get('bpi_field_body', '');
-    $materials_field = variable_get('bpi_field_materials', '');
+    $teaser = isset($field_mapping['teaser']) ? $field_mapping['teaser'] : NULL;
+    $body = isset($field_mapping['body']) ? $field_mapping['body'] : NULL;
+    $materials_field = isset($field_mapping['materials']) ? $field_mapping['materials'] : NULL;
 
     // Current language will be set to undefined, because this module is
     // lexigraphically before the locale module. If e.g. the weight in the
@@ -368,9 +370,9 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
       bpi_clear_syndicated_images();
     }
 
-    if (variable_get('bpi_syndicate_tags')) {
+    if (variable_get('bpi_syndicate_tags') && isset($field_mapping['tags'])) {
       $bpi_tags = $bpi_node->getTags();
-      $tags_field = variable_get('bpi_field_tags', '');
+      $tags_field = $field_mapping['tags'];
       if (!empty($bpi_tags) && !empty($tags_field) && isset($form[$tags_field][$current_language])) {
         $form[$tags_field][$current_language]['#default_value'] = implode(', ', $bpi_tags);
       }
@@ -382,10 +384,13 @@ function bpi_form_node_form_alter(&$form, &$form_state, $form_id) {
     elseif (isset($form[$body][$current_language][0])) {
       $form[$body][$current_language][0]['#default_value'] = $bpi_body;
     }
+
+    // Call hooks to handle specific bpi content type.
+    drupal_alter('bpi_syndicate_form', $form, $bpi_content, $syndicated_images);
   }
 
   // Add BPI fields.
-  if ($form_id == $bpi_ctype . '_node_form') {
+  if ($form_id == $content_type . '_node_form') {
     // Don't show BPI fields if user doesn't have access to the workflow tab.
     $node = $form['#node'];
     if (!workflow_tab_access("node", $node)) {
@@ -1110,6 +1115,7 @@ function bpi_features_views_default_views_alter(&$views) {
   }
 }
 
+
 /**
  * Implements hook_preprocess_HOOK().
  *
@@ -1122,5 +1128,218 @@ function bpi_preprocess_bpi_preview_item(&$variables) {
   $bpi_agency_id = variable_get('bpi_agency_id', '');
   if ($bpi_agency_id === $bpi_item['agency_id']) {
     $variables['hide_syndicate_link'] = TRUE;
+  }
+}
+
+/**
+ * Invoke hook in modules and return first non-empty result if any.
+ *
+ * @param $hook
+ *   The name of the hook to invoke.
+ * @param ...
+ *   Arguments to pass to the hook.
+ *
+ * @return mixed|null
+ */
+function bpi_module_invoke_one($hook) {
+  $args = func_get_args();
+  unset($args[0]);
+  foreach (module_implements($hook) as $module) {
+    $function = $module . '_' . $hook;
+    if (function_exists($function)) {
+      $result = call_user_func_array($function, $args);
+      if (!empty($result)) {
+        return $result;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Create a BPI mapping by merging in default values.
+ *
+ * @see bpi_get_mappings() for details on mappings.
+ *
+ * @param array $mapping
+ *   The (partial) mapping.
+ *
+ * @return array
+ *   The BPI mapping with defaults applied.
+ */
+function bpi_create_mapping(array $mapping) {
+  $default_mapping = array(
+    'bpi_node_type' => NULL,
+    'content_type' => NULL,
+    'field_mapping' => array(),
+  );
+
+  $mapping = array_merge($default_mapping, $mapping);
+
+  return $mapping;
+}
+
+/**
+ * Set BPI mappings.
+ *
+ * @see bpi_get_mappings() for details on mappings.
+ *
+ * @param array $bpi_mappings
+ *   The mappings.
+ */
+function bpi_set_mappings(array $mappings) {
+  // Make sure that all mappings have default values.
+  $mappings = array_map('bpi_create_mapping', $mappings);
+
+  variable_set('bpi_mappings', $mappings);
+}
+
+/**
+ * Get all BPI mappings.
+ *
+ * A BPI mapping maps a Drupal content type to a BPI content type. A mapping
+ * is an array with the following keys
+ *
+ *   'bpi_node_type' string the BPI node type, e.g. "article" or "campaign".
+ *   'content_type' string The Drupal content type.
+ *   'field_mapping' array Mapping (string => string) from BPI node field to
+ *                         Drupal content type field
+ *
+ * The value of 'field_mapping' depends on the Drupal content type.
+ *
+ * An example mapping for the "ding_news" Drupal content type:
+ *
+ *   array(
+ *     'bpi_node_type' => 'article',
+ *     'content_type' => 'ding_news',
+ *     'field_mapping' => array(
+ *       'title' => 'title',
+ *       'teaser' => 'field_ding_news_lead',
+ *       'body' => 'field_ding_news_body',
+ *       'tags' => 'field_ding_news_tags',
+ *       'materials' => 'field_ding_news_materials',
+ *     ),
+ *   )
+ *
+ *
+ * @return array
+ *   All defined mappings.
+ */
+function bpi_get_mappings() {
+  return variable_get('bpi_mappings', array());
+}
+
+/**
+ * Get mapping of a BPI node type.
+ *
+ * @see bpi_get_mappings() for details on the mapping.
+ *
+ * @param string $bpi_type
+ *   The BPI node type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping($bpi_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if ($mapping['bpi_node_type'] === $bpi_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Get mapping of a BPI node type by Drupal content type.
+ *
+ * @see bpi_get_mappings() for details on the mapping.
+ *
+ * @param string $content_type
+ *   The Drupal content type.
+ *
+ * @return null|array
+ *   The mapping if it exists. Otherwise null.
+ */
+function bpi_get_mapping_by_content_type($content_type) {
+  $mappings = bpi_get_mappings();
+
+  foreach ($mappings as $mapping) {
+    if ($mapping['content_type'] === $content_type) {
+      return $mapping;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Ensure that all content types used by BPI has the BPI workflow field.
+ */
+function bpi_ensure_bpi_workflow_fields() {
+  $entity_type = 'node';
+  $field_name = 'field_bpi_workflow';
+  $workflow_field = field_info_field($field_name);
+  if ($workflow_field !== NULL) {
+    $mappings = bpi_get_mappings();
+    foreach ($mappings as $mapping) {
+      // Create workflow field.
+      $content_type = $mapping['content_type'];
+      $field_instance = field_info_instance($entity_type, $field_name, $content_type);
+      if ($field_instance === NULL) {
+        $instance = array(
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'label' => 'BPI workflow',
+          'bundle' => $content_type,
+          'widget' => array(
+            'active' => 1,
+            'module' => 'workflowfield',
+            'settings' => array(
+              'comment' => 1,
+              'name_as_title' => 1,
+            ),
+            'type' => 'workflow_default',
+            'weight' => 35,
+          ),
+        );
+        field_create_instance($instance);
+        drupal_set_message(t('Added BPI workflow field to content type @content_type', array('@content_type' => $content_type)));
+      }
+
+      // Create workflow group.
+      $group_name = 'group_workflow';
+      $mode = 'form';
+      if (!field_group_exists($group_name, $entity_type, $content_type, $mode)) {
+        $group = (object) array(
+          'identifier' => $group_name . '|' . $entity_type . '|' . $content_type . '|' . $mode,
+          'group_name' => $group_name,
+          'entity_type' => $entity_type,
+          'bundle' => $content_type,
+          'mode' => $mode,
+          'label' => 'BPI',
+          'weight' => '36',
+          'children' => array($field_name),
+          'format_type' => 'tab',
+          'format_settings' => array(
+            'label' => 'BPI',
+            'instance_settings' => array(
+              'required_fields' => 0,
+              'classes' => '',
+              'description' => 'Data in this group will only be saved when "Save and push" is used.',
+            ),
+            'formatter' => 'closed',
+          ),
+        );
+        field_group_group_save($group);
+
+        // Enable the field group.
+        ctools_include('export');
+        ctools_export_crud_enable('field_group', $group->identifier);
+      }
+    }
   }
 }

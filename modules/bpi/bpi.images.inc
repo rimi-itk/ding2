@@ -243,7 +243,10 @@ function bpi_get_image_type($image_field_name, $node) {
   if (preg_match($pattern, $image_field_name, $matches)) {
     return $matches['image_type'];
   }
-  return NULL;
+
+  $hook = 'bpi_get_image_type';
+  // Get image type from first module able to handle the node.
+  return bpi_module_invoke_one($hook, $image_field_name, $node);
 }
 
 /**
